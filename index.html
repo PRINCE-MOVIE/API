@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#090a0f">
+  <meta name="description" content="PlayBox — votre prochaine histoire commence ici.">
+  <title>PlayBox — Films, séries & découvertes</title>
+  <link rel="preconnect" href="https://image.tmdb.org">
+  <link rel="stylesheet" href="style.css">
+  <script src="config.js" defer></script>
+  <script src="app.js" defer></script>
+</head>
+<body>
+  <div class="splash-screen" id="splash-screen" role="status" aria-live="polite" aria-label="Chargement de PlayBox">
+    <div class="splash-content">
+      <img class="splash-logo" src="prince.png" alt="">
+      <span class="splash-brand">Play<span>Box</span></span>
+      <span class="splash-spinner" aria-hidden="true"></span>
+      <p>Préparation de votre espace…</p>
+    </div>
+  </div>
+  <div class="ambient ambient-one" aria-hidden="true"></div>
+  <div class="ambient ambient-two" aria-hidden="true"></div>
+  <header class="topbar" data-app-content inert aria-hidden="true">
+    <a class="brand" href="index.html" aria-label="PlayBox, accueil">
+      <img class="brand-mark" src="playbox-logo.svg" alt="">
+      <span class="brand-word">Play<span>Box</span></span>
+    </a>
+    <nav class="main-nav" aria-label="Navigation principale">
+      <button class="nav-link is-active" data-view="home" type="button">Accueil</button>
+      <button class="nav-link" data-view="movie" type="button">Films</button>
+      <button class="nav-link" data-view="tv" type="button">Séries</button>
+    </nav>
+    <form class="search-form" role="search">
+      <label class="sr-only" for="search-input">Rechercher un film ou une série</label>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.5 4.5"></path></svg>
+      <input id="search-input" type="search" placeholder="Titres, genres…" autocomplete="off">
+      <button class="clear-search" type="button" aria-label="Effacer la recherche" hidden>×</button>
+    </form>
+  </header>
+
+  <main data-app-content inert aria-hidden="true">
+    <section class="hero" aria-labelledby="hero-title">
+      <div class="hero-art" aria-hidden="true">
+        <div class="hero-orbit orbit-one"></div>
+        <div class="hero-orbit orbit-two"></div>
+        <div class="hero-glow"></div>
+        <div class="hero-sigil">P<span>B</span></div>
+      </div>
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="live-dot"></span> VOTRE PROCHAIN COUP DE CŒUR</p>
+        <h1 id="hero-title">Le cinéma,<br>à votre <span>façon.</span></h1>
+        <p class="hero-description">Des mondes à explorer. Des histoires à dévorer. Trouvez votre prochaine obsession.</p>
+        <div class="hero-actions">
+          <button class="button button-primary" id="explore-button" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"></path></svg>
+            Explorer le catalogue
+          </button>
+          <span class="hero-caption">FILMS · SÉRIES · INSPIRATION</span>
+        </div>
+      </div>
+      <div class="hero-index" aria-hidden="true"><span>01</span><i></i> 03</div>
+    </section>
+
+    <div class="catalogue-heading">
+      <div>
+        <p class="eyebrow" id="section-eyebrow">À DÉCOUVRIR</p>
+        <h2 id="section-title">Des histoires pour chaque humeur<span>.</span></h2>
+      </div>
+      <span class="catalogue-count" id="catalogue-count">SÉLECTION PLAYBOX</span>
+    </div>
+    <div class="notice" id="status-message" role="status" aria-live="polite" hidden></div>
+    <section class="catalogue" id="catalogue" aria-label="Catalogue de films et séries"></section>
+  </main>
+
+  <footer class="footer" data-app-content inert aria-hidden="true">
+    <a class="brand brand-small" href="index.html" aria-label="PlayBox, accueil">
+      <img class="brand-mark" src="playbox-logo.svg" alt="">
+      <span class="brand-word">Play<span>Box</span></span>
+    </a>
+    <p>Un univers d’histoires, à portée de clic.</p>
+    <span>FAIT POUR LES SOIRS DE « JUSTE UN ÉPISODE »</span>
+  </footer>
+</body>
+</html>
