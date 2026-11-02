@@ -39,6 +39,12 @@ const episodeControls = document.getElementById("episode-controls");
 const seasonSelect = document.getElementById("season-select");
 const episodeSelect = document.getElementById("episode-select");
 const loadEpisodeButton = document.getElementById("load-episode");
+const langSelector = document.getElementById("lang-selector");
+
+// Bloque pop-ups, redirections et nouvelles fenêtres publicitaires venant des lecteurs.
+// (pas de allow-popups ni allow-top-navigation)
+const PLAYER_SANDBOX = "allow-scripts allow-same-origin allow-forms allow-presentation";
+const PLAYER_ALLOW = "autoplay; fullscreen; picture-in-picture; encrypted-media";
 const playerRuntime = {
   servers: [],
   currentIndex: 0,
@@ -198,18 +204,24 @@ async function loadView() {
 function getConfiguredServers() {
   playerRuntime.invalidServerCount = 0;
   const configuredServers = getConfig().STREAM_SERVERS;
+  // Une source peut être une simple URL (modèle /embed/movie/ID) ou un objet
+  // { name, url, movie, tv, lang } avec ses propres modèles de chemin.
   return (Array.isArray(configuredServers) ? configuredServers : []).reduce((servers, value) => {
-    if (typeof value !== "string" || !/^https?:\/\//i.test(value.trim())) {
+    const entry = typeof value === "string" ? { url: value } : value;
+    const rawUrl = entry && typeof entry.url === "string" ? entry.url.trim() : "";
+    if (!/^https?:\/\//i.test(rawUrl)) {
       playerRuntime.invalidServerCount += 1;
       return servers;
     }
     try {
-      const url = new URL(value.trim());
-      if (url.protocol !== "https:" && url.protocol !== "http:") {
-        playerRuntime.invalidServerCount += 1;
-        return servers;
-      }
-      servers.push(url.href.replace(/\/+$/, ""));
+      const url = new URL(rawUrl);
+      servers.push({
+        url: url.href.replace(/\/+$/, ""),
+        name: typeof entry.name === "string" ? entry.name : "",
+        movie: typeof entry.movie === "string" ? entry.movie : "",
+        tv: typeof entry.tv === "string" ? entry.tv : "",
+        lang: entry.lang !== false
+      });
     } catch {
       playerRuntime.invalidServerCount += 1;
     }
@@ -219,9 +231,9 @@ function getConfiguredServers() {
 
 function initializeSourceSelector() {
   playerRuntime.servers = getConfiguredServers();
-  setSelectOptions(nodeSelector, playerRuntime.servers.map((_, index) => ({
+  setSelectOptions(nodeSelector, playerRuntime.servers.map((server, index) => ({
     value: index,
-    label: `Source ${index + 1}`
+    label: server.name ? `Source ${index + 1} · ${server.name}` : `Source ${index + 1}`
   })), "Aucune source disponible");
 
   if (playerRuntime.servers.length) {
@@ -284,20 +296,24 @@ function loadTarget() {
   const server = playerRuntime.servers[playerRuntime.currentIndex];
   if (!resource || !server) return;
 
-  const target = new URL(server);
-  const serverPath = target.pathname.replace(/\/+$/, "");
-
-  if (resource.type === "movie") {
-    target.pathname = `${serverPath}/embed/movie/${encodeURIComponent(resource.id)}`;
-  } else {
-    target.pathname = `${serverPath}/embed/tv/${encodeURIComponent(resource.id)}/${encodeURIComponent(resource.saison)}/${encodeURIComponent(resource.episode)}`;
-  }
-
-  target.search = "";
+  const base = new URL(server.url);
+  const serverPath = base.pathname.replace(/\/+$/, "");
+  const template = resource.type === "movie"
+    ? (server.movie || "/embed/movie/{id}")
+    : (server.tv || "/embed/tv/{id}/{season}/{episode}");
+  const path = template
+    .replace("{id}", encodeURIComponent(resource.id))
+    .replace("{season}", encodeURIComponent(resource.saison))
+    .replace("{episode}", encodeURIComponent(resource.episode));
+  const target = new URL(`${base.origin}${serverPath}${path}`);
   target.hash = "";
 
-  playerFrame.removeAttribute("sandbox");
-  playerFrame.setAttribute("allow", "fullscreen");
+  // Paramètre de sous-titres (ignoré par les sources déjà en français comme Frembed)
+  const subLang = langSelector ? langSelector.value : (getConfig().DEFAULT_SUB_LANG || "");
+  if (subLang && server.lang) target.searchParams.set("ds_lang", subLang);
+
+  playerFrame.setAttribute("sandbox", PLAYER_SANDBOX);
+  playerFrame.setAttribute("allow", PLAYER_ALLOW);
   playerFrame.setAttribute("loading", "lazy");
   playerFrame.src = target.href;
   playerFrame.hidden = false;
@@ -390,9 +406,27 @@ async function initHomePage() {
 }
 
 function initPlayerPage() {
-  playerFrame.setAttribute("allow", "fullscreen");
+  playerFrame.setAttribute("sandbox", PLAYER_SANDBOX);
+  playerFrame.setAttribute("allow", PLAYER_ALLOW);
   playerFrame.setAttribute("loading", "lazy");
   initializeSourceSelector();
+
+  if (langSelector) {
+    const savedLang = localStorage.getItem("playbox:lang");
+    const defaultLang = savedLang !== null ? savedLang : (getConfig().DEFAULT_SUB_LANG || "fr");
+    if ([...langSelector.options].some((option) => option.value === defaultLang)) langSelector.value = defaultLang;
+    langSelector.addEventListener("change", () => {
+      localStorage.setItem("playbox:lang", langSelector.value);
+      if (playerRuntime.currentResource) loadTarget();
+    });
+  }
+
+  // Les lecteurs externes n'envoient pas "playbox:ready" : on se base sur la fin du chargement de l'iframe.
+  playerFrame.addEventListener("load", () => {
+    if (!playerFrame.getAttribute("src")) return;
+    playerMessage.hidden = true;
+    updatePlayerStatus(`Source ${playerRuntime.currentIndex + 1} prête`);
+  });
 
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
@@ -426,7 +460,7 @@ function initPlayerPage() {
   window.addEventListener("message", (event) => {
     if (event.source !== playerFrame.contentWindow) return;
     const server = playerRuntime.servers[playerRuntime.currentIndex];
-    if (!server || event.origin !== new URL(server).origin) return;
+    if (!server || event.origin !== new URL(server.url).origin) return;
     if (event.data !== "playbox:ready" && event.data?.type !== "playbox:ready") return;
     playerMessage.hidden = true;
     updatePlayerStatus(`Lecture confirmée · source ${playerRuntime.currentIndex + 1}`);
