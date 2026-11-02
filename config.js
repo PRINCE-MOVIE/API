@@ -9,8 +9,18 @@ const CONFIG = {
     "https://vidsrc.to",
     "https://vidsrc.me",
     "https://vidsrc.in",
-    // Source 6 : Frembed (films et séries en français VF / VOSTFR).
-    // Si le domaine change (il change souvent), modifie seulement "url" ci-dessous.
+    // Source 6 : Vidzy (films et séries en français VF / VOSTFR, par identifiant TMDB).
+    // "check" interroge Vidzy pour savoir si le titre existe avant de lancer la lecture.
+    {
+      name: "Vidzy (VF)",
+      url: "https://vidzy.org",
+      movie: "/movie/{id}",
+      tv: "/serie/{id}/{season}/{episode}",
+      lang: false,
+      check: "https://vidzy.org/api/{id}"
+    },
+    // Source 7 : Frembed (français VF / VOSTFR). Son domaine change souvent :
+    // si besoin, modifie seulement "url" ci-dessous.
     {
       name: "Frembed (français)",
       url: "https://frembed.bar",

@@ -222,7 +222,8 @@ function getConfiguredServers() {
         movie: typeof entry.movie === "string" ? entry.movie : "",
         tv: typeof entry.tv === "string" ? entry.tv : "",
         lang: entry.lang !== false,
-        sandbox: entry.sandbox !== false
+        sandbox: entry.sandbox !== false,
+        check: typeof entry.check === "string" ? entry.check : ""
       });
     } catch {
       playerRuntime.invalidServerCount += 1;
@@ -328,6 +329,26 @@ function loadTarget() {
   playerFrame.src = target.href;
   playerFrame.hidden = false;
   updatePlayerStatus(`Chargement de la source ${playerRuntime.currentIndex + 1} sur ${playerRuntime.servers.length}…`);
+  checkAvailability(server, resource);
+}
+
+// Pour les sources qui proposent une API de disponibilité (ex. Vidzy), prévient si le titre n'existe pas.
+// Si l'API n'est pas accessible depuis le navigateur (CORS), on ignore silencieusement.
+async function checkAvailability(server, resource) {
+  if (!server.check) return;
+  try {
+    const response = await fetch(server.check.replace("{id}", encodeURIComponent(resource.id)), {
+      headers: { Accept: "application/json" }
+    });
+    if (!response.ok) return;
+    const data = await response.json();
+    if (playerRuntime.currentResource !== resource || playerRuntime.servers[playerRuntime.currentIndex] !== server) return;
+    if (data && data.available === false) {
+      updatePlayerStatus("Titre indisponible sur cette source · essayez une autre source", true);
+    }
+  } catch {
+    /* API non accessible : on laisse le lecteur gérer */
+  }
 }
 
 function openPlayer(media) {
