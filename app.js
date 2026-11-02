@@ -29,6 +29,38 @@ const state = {
   featured: null
 };
 
+const HOME_STATE_KEY = "prince:home";
+const SPLASH_SEEN_KEY = "prince:splash-seen";
+let homeStateReady = false;
+
+function readSession(key) {
+  try { return JSON.parse(sessionStorage.getItem(key) || "null"); } catch { return null; }
+}
+
+function writeSession(key, value) {
+  try { sessionStorage.setItem(key, JSON.stringify(value)); } catch { /* stockage indisponible */ }
+}
+
+// Mémorise l'onglet, la recherche et la position de défilement de l'accueil.
+function saveHomeState() {
+  if (!homeStateReady) return;
+  writeSession(HOME_STATE_KEY, { view: state.view, query: state.query, scroll: Math.round(window.scrollY) });
+}
+
+// État du lecteur (source, saison, épisode) mémorisé par titre.
+function getPlayerStateKey() {
+  const params = new URLSearchParams(window.location.search);
+  return `prince:player:${params.get("type")}:${params.get("id")}`;
+}
+
+function readPlayerState() {
+  return readSession(getPlayerStateKey()) || {};
+}
+
+function savePlayerState(patch) {
+  writeSession(getPlayerStateKey(), { ...readPlayerState(), ...patch });
+}
+
 const catalogue = document.getElementById("catalogue");
 const statusMessage = document.getElementById("status-message");
 const billboard = document.getElementById("billboard");
@@ -295,12 +327,17 @@ function initializeSourceSelector() {
   })), "Aucune source disponible");
 
   if (playerRuntime.servers.length) {
-    nodeSelector.value = "0";
+    const savedSource = Number(readPlayerState().source);
+    if (Number.isInteger(savedSource) && playerRuntime.servers[savedSource]) {
+      playerRuntime.currentIndex = savedSource;
+    }
+    nodeSelector.value = String(playerRuntime.currentIndex);
   }
   nodeSelector.addEventListener("change", () => {
     const selectedIndex = Number(nodeSelector.value);
     if (!Number.isInteger(selectedIndex) || !playerRuntime.servers[selectedIndex]) return;
     playerRuntime.currentIndex = selectedIndex;
+    savePlayerState({ source: selectedIndex });
     loadTarget();
   });
 }
@@ -330,6 +367,7 @@ function chargerFluxMedia(type, id, saison = 1, episode = 1) {
     return;
   }
   playerRuntime.currentResource = { type, id, saison, episode };
+  if (type === "tv") savePlayerState({ season: Number(saison), episode: Number(episode) });
 
   if (!playerRuntime.servers.length) {
     playerFrame.removeAttribute("src");
@@ -380,6 +418,7 @@ function loadTarget() {
     playerFrame.removeAttribute("sandbox");
   }
   playerFrame.setAttribute("allow", PLAYER_ALLOW);
+  playerFrame.setAttribute("allowfullscreen", "");
   playerFrame.setAttribute("loading", "lazy");
   playerFrame.src = target.href;
   playerFrame.hidden = false;
@@ -411,12 +450,16 @@ function openPlayer(media) {
   url.searchParams.set("id", media.id);
   url.searchParams.set("type", media.type);
   url.searchParams.set("title", media.title);
+  saveHomeState();
   window.location.assign(url.href);
 }
 
-async function dismissSplashScreen() {
+async function dismissSplashScreen(instant = false) {
   const splash = document.getElementById("splash-screen");
-  if (splash) {
+  if (splash && instant) {
+    splash.setAttribute("aria-hidden", "true");
+    splash.hidden = true;
+  } else if (splash) {
     splash.setAttribute("aria-hidden", "true");
     splash.classList.add("is-hidden");
     await new Promise((resolve) => {
@@ -439,9 +482,28 @@ async function dismissSplashScreen() {
     element.removeAttribute("aria-hidden");
   });
   document.body.classList.add("is-ready");
+  try { sessionStorage.setItem(SPLASH_SEEN_KEY, "1"); } catch { /* ignoré */ }
 }
 
 async function initHomePage() {
+  if ("scrollRestoration" in history) history.scrollRestoration = "manual";
+
+  let splashSeen = false;
+  try { splashSeen = sessionStorage.getItem(SPLASH_SEEN_KEY) === "1"; } catch { /* ignoré */ }
+
+  // Retrouve l'onglet, la recherche et la position où l'on était (retour du lecteur, rotation, rechargement).
+  const saved = readSession(HOME_STATE_KEY);
+  let restoreScroll = 0;
+  if (saved) {
+    if (["home", "movie", "tv"].includes(saved.view)) state.view = saved.view;
+    if (typeof saved.query === "string") state.query = saved.query;
+    restoreScroll = Number(saved.scroll) || 0;
+    document.querySelector(".nav-link.is-active")?.classList.remove("is-active");
+    document.querySelector(`.nav-link[data-view="${state.view}"]`)?.classList.add("is-active");
+    searchInput.value = state.query;
+    clearSearchButton.hidden = !state.query;
+  }
+
   document.querySelectorAll(".nav-link").forEach((button) => {
     button.addEventListener("click", () => {
       document.querySelector(".nav-link.is-active")?.classList.remove("is-active");
@@ -450,6 +512,7 @@ async function initHomePage() {
       state.query = "";
       searchInput.value = "";
       clearSearchButton.hidden = true;
+      saveHomeState();
       loadView();
     });
   });
@@ -465,6 +528,7 @@ async function initHomePage() {
   searchInput.addEventListener("input", () => {
     state.query = searchInput.value.trim();
     clearSearchButton.hidden = !state.query;
+    saveHomeState();
     window.clearTimeout(searchTimer);
     searchTimer = window.setTimeout(loadView, 280);
   });
@@ -472,6 +536,7 @@ async function initHomePage() {
     searchInput.value = "";
     state.query = "";
     clearSearchButton.hidden = true;
+    saveHomeState();
     loadView();
     searchInput.focus();
   });
@@ -486,18 +551,100 @@ async function initHomePage() {
     if (card) openPlayer(JSON.parse(card.dataset.media));
   });
 
-  const minimumSplashDuration = new Promise((resolve) => window.setTimeout(resolve, 1400));
+  let scrollTimer;
+  window.addEventListener("scroll", () => {
+    window.clearTimeout(scrollTimer);
+    scrollTimer = window.setTimeout(saveHomeState, 150);
+  }, { passive: true });
+  window.addEventListener("pagehide", saveHomeState);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "hidden") saveHomeState();
+  });
+
+  const minimumSplashDuration = new Promise((resolve) => window.setTimeout(resolve, splashSeen ? 0 : 1400));
   try {
     await loadView();
   } finally {
     await minimumSplashDuration;
-    await dismissSplashScreen();
+    await dismissSplashScreen(splashSeen);
+    if (restoreScroll > 0) window.scrollTo(0, restoreScroll);
+    homeStateReady = true;
   }
 }
 
+// Plein écran : API native (Android, ordinateur) ou, à défaut (iPhone…), plein écran simulé qui remplit l'écran.
+function initFullscreenButton() {
+  const button = document.getElementById("fullscreen-button");
+  const exitButton = document.getElementById("fullscreen-exit");
+  const box = document.querySelector(".cinema-frame");
+  if (!button || !box) return;
+  const label = button.querySelector("span");
+  const nativeElement = () => document.fullscreenElement || document.webkitFullscreenElement || null;
+  const isActive = () => Boolean(nativeElement()) || box.classList.contains("is-pseudo-fullscreen");
+
+  function refresh() {
+    const active = isActive();
+    button.setAttribute("aria-pressed", String(active));
+    label.textContent = active ? "Quitter le plein écran" : "Plein écran";
+    exitButton.hidden = !active;
+    document.body.classList.toggle("has-fullscreen", active);
+  }
+
+  async function enter() {
+    const request = box.requestFullscreen || box.webkitRequestFullscreen;
+    if (request) {
+      try {
+        await request.call(box);
+        try { await screen.orientation?.lock?.("landscape"); } catch { /* non pris en charge */ }
+        refresh();
+        return;
+      } catch { /* on bascule sur le plein écran simulé */ }
+    }
+    box.classList.add("is-pseudo-fullscreen");
+    refresh();
+  }
+
+  async function exit() {
+    if (nativeElement()) {
+      try { await (document.exitFullscreen || document.webkitExitFullscreen).call(document); } catch { /* ignoré */ }
+      try { screen.orientation?.unlock?.(); } catch { /* ignoré */ }
+    }
+    box.classList.remove("is-pseudo-fullscreen");
+    refresh();
+  }
+
+  button.addEventListener("click", () => (isActive() ? exit() : enter()));
+  exitButton.addEventListener("click", exit);
+  document.addEventListener("fullscreenchange", refresh);
+  document.addEventListener("webkitfullscreenchange", refresh);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && box.classList.contains("is-pseudo-fullscreen")) exit();
+  });
+}
+
+function initBackButton() {
+  const backButton = document.querySelector(".back-button");
+  if (!backButton) return;
+  backButton.addEventListener("click", (event) => {
+    try {
+      const referrer = document.referrer ? new URL(document.referrer) : null;
+      const comesFromCatalogue = referrer
+        && referrer.origin === window.location.origin
+        && /(\/|index\.html)$/.test(referrer.pathname);
+      if (comesFromCatalogue && window.history.length > 1) {
+        event.preventDefault();
+        window.history.back();
+      }
+    } catch { /* on laisse le lien normal */ }
+  });
+}
+
 function initPlayerPage() {
+  initBackButton();
+  initFullscreenButton();
   playerFrame.removeAttribute("sandbox");
   playerFrame.setAttribute("allow", PLAYER_ALLOW);
+  playerFrame.setAttribute("allowfullscreen", "");
   playerFrame.setAttribute("loading", "lazy");
   initializeSourceSelector();
 
@@ -623,9 +770,12 @@ async function loadTvSeasons(id) {
       value: season.season_number,
       label: season.name || `Saison ${season.season_number}`
     })), "Aucune saison disponible");
-    seasonSelect.value = String(seasons.some((season) => season.season_number === 1)
-      ? 1
-      : seasons[0].season_number);
+    const savedSeason = Number(readPlayerState().season);
+    seasonSelect.value = String(
+      playerRuntime.availableSeasons.includes(savedSeason) ? savedSeason
+        : seasons.some((season) => season.season_number === 1) ? 1
+        : seasons[0].season_number
+    );
     await loadSeasonEpisodes(id, Number(seasonSelect.value), true);
   } catch (error) {
     updatePlayerStatus("Impossible de charger les saisons", true);
@@ -666,7 +816,11 @@ async function loadSeasonEpisodes(id, seasonNumber, autoplay) {
       return;
     }
 
-    episodeSelect.value = String(episodes[0].episode_number);
+    const savedPlayer = readPlayerState();
+    const restoredEpisode = savedPlayer.season === seasonNumber && playerRuntime.availableEpisodes.includes(Number(savedPlayer.episode))
+      ? Number(savedPlayer.episode)
+      : episodes[0].episode_number;
+    episodeSelect.value = String(restoredEpisode);
     loadEpisodeButton.disabled = false;
     if (autoplay) {
       chargerFluxMedia("tv", id, seasonNumber, Number(episodeSelect.value));
