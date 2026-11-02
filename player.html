@@ -15,7 +15,7 @@
   <div class="ambient ambient-two" aria-hidden="true"></div>
   <header class="topbar player-topbar">
     <a class="brand" href="index.html" aria-label="PlayBox, accueil">
-      <img class="brand-mark" src="playbox-logo.svg" alt="">
+      <img class="brand-mark" src="prince.png" alt="">
       <span class="brand-word">Play<span>Box</span></span>
     </a>
     <a class="back-button" href="index.html">
@@ -44,7 +44,7 @@
         <p class="cinema-description" id="player-detail">Choisissez une source pour lancer la lecture.</p>
         <div class="loader-bars" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></div>
       </div>
-      <iframe id="content-frame" sandbox="allow-scripts allow-same-origin allow-forms allow-popups allow-pointer-lock" allow="fullscreen" loading="lazy"></iframe>
+      <iframe id="content-frame" allow="autoplay; fullscreen; picture-in-picture; encrypted-media" allowfullscreen referrerpolicy="origin" loading="lazy"></iframe>
     </section>
     <div class="watch-toolbar">
       <div class="source-note"><span class="status-indicator" aria-hidden="true"></span><span id="source-note">Sélectionnez une source de lecture</span></div>
@@ -53,6 +53,21 @@
           <label for="node-selector">Source</label>
           <select id="node-selector" aria-label="Choisir une source" disabled>
             <option value="">Chargement…</option>
+          </select>
+        </div>
+        <div class="source-controls">
+          <label for="lang-selector">Langue</label>
+          <select id="lang-selector" aria-label="Choisir la langue des sous-titres">
+            <option value="fr">Sous-titres français</option>
+            <option value="en">Sous-titres anglais</option>
+            <option value="">VO sans sous-titres</option>
+          </select>
+        </div>
+        <div class="source-controls">
+          <label for="adblock-toggle">Anti-pub</label>
+          <select id="adblock-toggle" aria-label="Activer ou désactiver le blocage des pop-ups publicitaires">
+            <option value="off">Désactivé</option>
+            <option value="on">Activé</option>
           </select>
         </div>
         <div class="episode-controls" id="episode-controls" hidden>
@@ -71,7 +86,7 @@
   </main>
   <footer class="footer watch-footer">
     <a class="brand brand-small" href="index.html" aria-label="PlayBox, accueil">
-      <img class="brand-mark" src="playbox-logo.svg" alt="">
+      <img class="brand-mark" src="prince.png" alt="">
       <span class="brand-word">Play<span>Box</span></span>
     </a>
     <p>Votre prochain épisode vous attend.</p>

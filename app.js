@@ -40,6 +40,7 @@ const seasonSelect = document.getElementById("season-select");
 const episodeSelect = document.getElementById("episode-select");
 const loadEpisodeButton = document.getElementById("load-episode");
 const langSelector = document.getElementById("lang-selector");
+const adblockSelector = document.getElementById("adblock-toggle");
 
 // Bloque pop-ups, redirections et nouvelles fenêtres publicitaires venant des lecteurs.
 // (pas de allow-popups ni allow-top-navigation)
@@ -313,9 +314,11 @@ function loadTarget() {
   const subLang = langSelector ? langSelector.value : (getConfig().DEFAULT_SUB_LANG || "");
   if (subLang && server.lang) target.searchParams.set("ds_lang", subLang);
 
-  // Certaines sources (ex. Frembed) affichent une page blanche dans un iframe sandboxé :
-  // on peut désactiver le sandbox pour elles seules avec sandbox: false dans config.js.
-  if (server.sandbox) {
+  // Le sandbox bloque les pop-ups publicitaires, mais beaucoup de lecteurs refusent de
+  // démarrer dans un iframe sandboxé. Il est donc désactivé par défaut : on l'active avec
+  // le menu « Anti-pub », sauf pour les sources marquées sandbox: false dans config.js.
+  const useSandbox = server.sandbox && adblockSelector && adblockSelector.value === "on";
+  if (useSandbox) {
     playerFrame.setAttribute("sandbox", PLAYER_SANDBOX);
   } else {
     playerFrame.removeAttribute("sandbox");
@@ -413,10 +416,18 @@ async function initHomePage() {
 }
 
 function initPlayerPage() {
-  playerFrame.setAttribute("sandbox", PLAYER_SANDBOX);
+  playerFrame.removeAttribute("sandbox");
   playerFrame.setAttribute("allow", PLAYER_ALLOW);
   playerFrame.setAttribute("loading", "lazy");
   initializeSourceSelector();
+
+  if (adblockSelector) {
+    adblockSelector.value = localStorage.getItem("playbox:adblock") === "on" ? "on" : "off";
+    adblockSelector.addEventListener("change", () => {
+      localStorage.setItem("playbox:adblock", adblockSelector.value);
+      if (playerRuntime.currentResource) loadTarget();
+    });
+  }
 
   if (langSelector) {
     const savedLang = localStorage.getItem("playbox:lang");

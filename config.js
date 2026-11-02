@@ -17,8 +17,7 @@ const CONFIG = {
       movie: "/embed/movie/{id}",
       tv: "/embed/serie/{id}?sa={season}&epi={episode}",
       lang: false,
-      // Frembed reste blanc dans un iframe sandboxé : on le désactive pour cette source.
-      // Remets true (ou supprime la ligne) pour bloquer les pop-ups publicitaires.
+      // false = ne jamais utiliser le sandbox anti-pub pour cette source (Frembed reste blanc avec).
       sandbox: false
     }
   ]
