@@ -25,11 +25,13 @@ const state = {
   view: "home",
   query: "",
   requestId: 0,
-  activeMedia: null
+  activeMedia: null,
+  featured: null
 };
 
 const catalogue = document.getElementById("catalogue");
 const statusMessage = document.getElementById("status-message");
+const billboard = document.getElementById("billboard");
 const searchInput = document.getElementById("search-input");
 const clearSearchButton = document.querySelector(".clear-search");
 const playerFrame = document.getElementById("content-frame");
@@ -128,29 +130,85 @@ async function fetchTmdb(endpoint) {
   return response.json();
 }
 
+function formatRating(item) {
+  const rating = Number(item.vote_average);
+  return rating > 0 ? rating.toFixed(1).replace(".", ",") : "";
+}
+
 function renderCards(items) {
+  const count = document.getElementById("catalogue-count");
   if (!items.length) {
-    catalogue.innerHTML = `<p class="empty-state">${state.query ? "Aucun résultat pour cette recherche." : "Aucun titre à afficher pour le moment."}</p>`;
+    catalogue.innerHTML = `<p class="empty-state">${state.query ? "Aucun résultat pour cette recherche. Essayez un autre titre." : "Aucun titre à afficher pour le moment."}</p>`;
+    if (count) count.textContent = "";
     return;
   }
-  catalogue.innerHTML = items.map((item, index) => {
+  if (count) count.textContent = `${items.length} titre${items.length > 1 ? "s" : ""}`;
+  catalogue.innerHTML = items.map((item) => {
     const title = getMediaTitle(item);
     const type = getMediaType(item);
-    const colorStart = item.colors ? item.colors[0] : "#30203d";
-    const colorEnd = item.colors ? item.colors[1] : "#7f3f64";
-    const posterBackground = item.backdrop_path
-      ? `linear-gradient(0deg,rgba(8,8,13,.8),transparent 80%),url(https://image.tmdb.org/t/p/w780${item.backdrop_path}) center 35%/cover`
-      : `linear-gradient(135deg,${colorStart},${colorEnd})`;
+    const rating = formatRating(item);
+    const colorStart = item.colors ? item.colors[0] : "#1d2660";
+    const colorEnd = item.colors ? item.colors[1] : "#0b1030";
     const media = JSON.stringify({ id: item.id, title, type }).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-    return `<article class="media-card" style="animation-delay:${Math.min(index * 35, 280)}ms">
-      <button class="poster" type="button" data-media="${media}" style="--card-bg:${posterBackground}" aria-label="Ouvrir ${escapeHtml(title)} dans le lecteur">
-        <span class="poster-wordmark">${escapeHtml(title)}</span>
+    const base = "https://image.tmdb.org/t/p";
+    const art = item.poster_path
+      ? `<img src="${base}/w342${item.poster_path}" srcset="${base}/w185${item.poster_path} 185w, ${base}/w342${item.poster_path} 342w, ${base}/w500${item.poster_path} 500w" sizes="(max-width: 820px) 46vw, 200px" alt="" loading="lazy" decoding="async">`
+      : `<span class="poster-fallback" style="--from:${colorStart};--to:${colorEnd}"><span>${escapeHtml(title)}</span></span>`;
+    return `<article class="media-card">
+      <button class="poster" type="button" data-media="${media}" aria-label="Regarder ${escapeHtml(title)}">
+        ${art}
+        <span class="poster-type">${type === "tv" ? "Série" : "Film"}</span>
+        ${rating ? `<span class="poster-rating">★ ${rating}</span>` : ""}
         <span class="poster-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"></path></svg></span>
       </button>
       <div class="card-meta"><span class="card-title">${escapeHtml(title)}</span><span class="card-year">${escapeHtml(getYear(item))}</span></div>
-      <div class="card-subtitle">${escapeHtml(item.overview || (type === "tv" ? "Série · À découvrir" : "Film · À découvrir"))}</div>
     </article>`;
   }).join("");
+}
+
+function pickFeatured(items) {
+  return items.find((item) => item.backdrop_path && item.overview)
+    || items.find((item) => item.backdrop_path)
+    || items[0];
+}
+
+function setBillboard(item) {
+  if (!billboard) return;
+  if (!item) {
+    billboard.hidden = true;
+    state.featured = null;
+    return;
+  }
+  const title = getMediaTitle(item);
+  const type = getMediaType(item);
+  const rating = formatRating(item);
+  const year = getYear(item);
+  state.featured = { id: item.id, title, type };
+
+  billboard.hidden = false;
+  billboard.classList.remove("is-loaded");
+  billboard.style.setProperty("--from", item.colors ? item.colors[0] : "#1a2470");
+  billboard.style.setProperty("--to", item.colors ? item.colors[1] : "#0a1030");
+  document.getElementById("billboard-title").textContent = title;
+  document.getElementById("billboard-overview").textContent = item.overview
+    || (type === "tv" ? "Une série à découvrir sur PRINCE MOVIE." : "Un film à découvrir sur PRINCE MOVIE.");
+  document.getElementById("billboard-meta").innerHTML = [
+    `<span class="chip-type">${type === "tv" ? "Série" : "Film"}</span>`,
+    year !== "—" ? `<span>${escapeHtml(year)}</span>` : "",
+    rating ? `<span class="chip-rating">★ ${rating}</span>` : ""
+  ].join("");
+  document.getElementById("billboard-play").hidden = false;
+
+  const mediaBox = document.getElementById("billboard-media");
+  mediaBox.replaceChildren();
+  if (item.backdrop_path) {
+    const image = new Image();
+    image.alt = "";
+    image.decoding = "async";
+    image.addEventListener("load", () => billboard.classList.add("is-loaded"));
+    image.src = `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`;
+    mediaBox.append(image);
+  }
 }
 
 function escapeHtml(value) {
@@ -160,26 +218,23 @@ function escapeHtml(value) {
 }
 
 function updateHeading() {
-  const eyebrow = document.getElementById("section-eyebrow");
   const title = document.getElementById("section-title");
   const count = document.getElementById("catalogue-count");
+  if (count) count.textContent = "";
   if (state.query) {
-    eyebrow.textContent = "RÉSULTATS DE RECHERCHE";
     title.textContent = `Résultats pour « ${state.query} »`;
-    count.textContent = "RECHERCHE";
   } else if (state.view === "movie") {
-    eyebrow.textContent = "GRAND ÉCRAN";
-    title.innerHTML = "Films à l’affiche<span>.</span>";
-    count.textContent = "FILMS";
+    title.textContent = "Films populaires";
   } else if (state.view === "tv") {
-    eyebrow.textContent = "À SUIVRE";
-    title.innerHTML = "Séries à découvrir<span>.</span>";
-    count.textContent = "SÉRIES";
+    title.textContent = "Séries populaires";
   } else {
-    eyebrow.textContent = "À DÉCOUVRIR";
-    title.innerHTML = "Des histoires pour chaque humeur<span>.</span>";
-    count.textContent = "SÉLECTION PLAYBOX";
+    title.textContent = "Tendances de la semaine";
   }
+}
+
+function showItems(items) {
+  renderCards(items);
+  setBillboard(state.query ? null : pickFeatured(items));
 }
 
 async function loadView() {
@@ -188,17 +243,17 @@ async function loadView() {
   setStatus("");
   setLoading();
   if (!hasApiKey()) {
-    renderCards(getDemoItems(state.view, state.query));
-    setStatus("Catalogue de démonstration. Ajoutez votre clé TMDB dans config.js pour charger les titres en direct. Toute clé placée ici sera visible par les visiteurs du site.");
+    showItems(getDemoItems(state.view, state.query));
+    setStatus("Catalogue de démonstration : ajoutez votre clé TMDB dans config.js pour afficher les titres en direct.");
     return;
   }
   try {
     const items = await fetchCatalogue(state.view, state.query, currentRequest);
-    if (items) renderCards(items);
+    if (items) showItems(items);
   } catch (error) {
     if (currentRequest !== state.requestId) return;
-    renderCards(getDemoItems(state.view, state.query));
-    setStatus(`Impossible de charger le catalogue en direct : ${error.message} Affichage de la sélection de démonstration.`);
+    showItems(getDemoItems(state.view, state.query));
+    setStatus(`Impossible de charger le catalogue en direct (${error.message}). Affichage de la sélection de démonstration.`);
   }
 }
 
@@ -383,6 +438,7 @@ async function dismissSplashScreen() {
     element.removeAttribute("inert");
     element.removeAttribute("aria-hidden");
   });
+  document.body.classList.add("is-ready");
 }
 
 async function initHomePage() {
@@ -422,12 +478,15 @@ async function initHomePage() {
   document.getElementById("explore-button").addEventListener("click", () => {
     document.querySelector(".catalogue-heading").scrollIntoView({ behavior: "smooth", block: "start" });
   });
+  document.getElementById("billboard-play").addEventListener("click", () => {
+    if (state.featured) openPlayer(state.featured);
+  });
   catalogue.addEventListener("click", (event) => {
     const card = event.target.closest("[data-media]");
     if (card) openPlayer(JSON.parse(card.dataset.media));
   });
 
-  const minimumSplashDuration = new Promise((resolve) => window.setTimeout(resolve, 1700));
+  const minimumSplashDuration = new Promise((resolve) => window.setTimeout(resolve, 1400));
   try {
     await loadView();
   } finally {
@@ -443,24 +502,24 @@ function initPlayerPage() {
   initializeSourceSelector();
 
   if (adblockSelector) {
-    adblockSelector.value = localStorage.getItem("playbox:adblock") === "on" ? "on" : "off";
+    adblockSelector.value = localStorage.getItem("prince:adblock") === "on" ? "on" : "off";
     adblockSelector.addEventListener("change", () => {
-      localStorage.setItem("playbox:adblock", adblockSelector.value);
+      localStorage.setItem("prince:adblock", adblockSelector.value);
       if (playerRuntime.currentResource) loadTarget();
     });
   }
 
   if (langSelector) {
-    const savedLang = localStorage.getItem("playbox:lang");
+    const savedLang = localStorage.getItem("prince:lang");
     const defaultLang = savedLang !== null ? savedLang : (getConfig().DEFAULT_SUB_LANG || "fr");
     if ([...langSelector.options].some((option) => option.value === defaultLang)) langSelector.value = defaultLang;
     langSelector.addEventListener("change", () => {
-      localStorage.setItem("playbox:lang", langSelector.value);
+      localStorage.setItem("prince:lang", langSelector.value);
       if (playerRuntime.currentResource) loadTarget();
     });
   }
 
-  // Les lecteurs externes n'envoient pas "playbox:ready" : on se base sur la fin du chargement de l'iframe.
+  // Les lecteurs externes n'envoient pas "prince:ready" : on se base sur la fin du chargement de l'iframe.
   playerFrame.addEventListener("load", () => {
     if (!playerFrame.getAttribute("src")) return;
     playerMessage.hidden = true;
@@ -474,9 +533,9 @@ function initPlayerPage() {
   const validId = /^\d+$/.test(id || "");
   const validType = type === "movie" || type === "tv";
 
-  document.title = `${title} — PlayBox`;
+  document.title = `${title} — PRINCE MOVIE`;
   document.getElementById("player-title").textContent = title;
-  document.getElementById("player-subtitle").textContent = validType && type === "tv" ? "Série · Lecture en cours" : "Film · Lecture en cours";
+  document.getElementById("player-subtitle").textContent = validType && type === "tv" ? "Série" : "Film";
   episodeControls.hidden = type !== "tv";
   if (!validId || !validType) {
     updatePlayerStatus("Titre introuvable", true);
@@ -500,7 +559,7 @@ function initPlayerPage() {
     if (event.source !== playerFrame.contentWindow) return;
     const server = playerRuntime.servers[playerRuntime.currentIndex];
     if (!server || event.origin !== new URL(server.url).origin) return;
-    if (event.data !== "playbox:ready" && event.data?.type !== "playbox:ready") return;
+    if (event.data !== "prince:ready" && event.data?.type !== "prince:ready") return;
     playerMessage.hidden = true;
     updatePlayerStatus(`Lecture confirmée · source ${playerRuntime.currentIndex + 1}`);
   });
