@@ -15,7 +15,7 @@
   <link rel="preconnect" href="https://image.tmdb.org">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Instrument+Sans:wght@400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Cinzel:wght@600;800&family=Instrument+Sans:wght@400;500;600;700&display=swap">
   <link rel="stylesheet" href="style.css">
   <script src="config.js" defer></script>
   <script src="app.js" defer></script>
@@ -24,7 +24,7 @@
   <div class="splash-screen" id="splash-screen" role="status" aria-live="polite" aria-label="Chargement de PRINCE MOVIE">
     <div class="splash-content">
       <img class="splash-logo" src="logo.svg" alt="" width="104" height="104">
-      <span class="splash-brand"><b>PRINCE</b> MOVIE</span>
+      <span class="splash-brand"><b>PRINCE</b> <span class="movie">M<i>O</i>VIE</span></span>
       <span class="splash-spinner" aria-hidden="true"></span>
     </div>
   </div>
@@ -32,7 +32,7 @@
   <header class="topbar" data-app-content inert aria-hidden="true">
     <a class="brand" href="index.html" aria-label="PRINCE MOVIE, accueil">
       <img class="brand-mark" src="logo.svg" alt="" width="40" height="40">
-      <span class="brand-word"><b>PRINCE</b> MOVIE</span>
+      <span class="brand-word"><b>PRINCE</b> <span class="movie">M<i>O</i>VIE</span></span>
     </a>
     <nav class="main-nav" aria-label="Navigation principale">
       <button class="nav-link is-active" data-view="home" type="button">Accueil</button>
@@ -79,9 +79,10 @@
   <footer class="footer" data-app-content inert aria-hidden="true">
     <a class="brand brand-small" href="index.html" aria-label="PRINCE MOVIE, accueil">
       <img class="brand-mark" src="logo.svg" alt="" width="30" height="30">
-      <span class="brand-word"><b>PRINCE</b> MOVIE</span>
+      <span class="brand-word"><b>PRINCE</b> <span class="movie">M<i>O</i>VIE</span></span>
     </a>
     <p>Films et séries en français. Les vidéos sont diffusées par des services tiers.</p>
+    <p class="footer-credit">Créé par <strong>Prince Tech</strong></p>
   </footer>
 </body>
 </html>
