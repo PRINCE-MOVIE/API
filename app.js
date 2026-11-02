@@ -220,7 +220,8 @@ function getConfiguredServers() {
         name: typeof entry.name === "string" ? entry.name : "",
         movie: typeof entry.movie === "string" ? entry.movie : "",
         tv: typeof entry.tv === "string" ? entry.tv : "",
-        lang: entry.lang !== false
+        lang: entry.lang !== false,
+        sandbox: entry.sandbox !== false
       });
     } catch {
       playerRuntime.invalidServerCount += 1;
@@ -312,7 +313,13 @@ function loadTarget() {
   const subLang = langSelector ? langSelector.value : (getConfig().DEFAULT_SUB_LANG || "");
   if (subLang && server.lang) target.searchParams.set("ds_lang", subLang);
 
-  playerFrame.setAttribute("sandbox", PLAYER_SANDBOX);
+  // Certaines sources (ex. Frembed) affichent une page blanche dans un iframe sandboxé :
+  // on peut désactiver le sandbox pour elles seules avec sandbox: false dans config.js.
+  if (server.sandbox) {
+    playerFrame.setAttribute("sandbox", PLAYER_SANDBOX);
+  } else {
+    playerFrame.removeAttribute("sandbox");
+  }
   playerFrame.setAttribute("allow", PLAYER_ALLOW);
   playerFrame.setAttribute("loading", "lazy");
   playerFrame.src = target.href;

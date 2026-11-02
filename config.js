@@ -16,7 +16,10 @@ const CONFIG = {
       url: "https://frembed.bar",
       movie: "/embed/movie/{id}",
       tv: "/embed/serie/{id}?sa={season}&epi={episode}",
-      lang: false
+      lang: false,
+      // Frembed reste blanc dans un iframe sandboxé : on le désactive pour cette source.
+      // Remets true (ou supprime la ligne) pour bloquer les pop-ups publicitaires.
+      sandbox: false
     }
   ]
 };
