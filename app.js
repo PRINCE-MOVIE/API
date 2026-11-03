@@ -26,8 +26,28 @@ const state = {
   query: "",
   requestId: 0,
   activeMedia: null,
-  featured: null
+  featured: null,
+  featuredItem: null,
+  heroList: [],
+  heroIndex: 0
 };
+
+const HERO_DELAY = 7000;
+let heroTimer = null;
+
+// Genres TMDB en français (films et séries) pour la ligne « Action • Aventure ».
+const GENRES = {
+  28: "Action", 12: "Aventure", 16: "Animation", 35: "Comédie", 80: "Crime", 99: "Documentaire",
+  18: "Drame", 10751: "Famille", 14: "Fantastique", 36: "Histoire", 27: "Horreur", 10402: "Musique",
+  9648: "Mystère", 10749: "Romance", 878: "Science-fiction", 10770: "Téléfilm", 53: "Thriller",
+  10752: "Guerre", 37: "Western", 10759: "Action & Aventure", 10762: "Enfants", 10763: "Actualités",
+  10764: "Télé-réalité", 10765: "Science-fiction", 10766: "Feuilleton", 10767: "Talk-show", 10768: "Guerre & Politique"
+};
+
+function getGenres(item) {
+  if (item.genre) return item.genre.split("·").map((part) => part.trim()).filter(Boolean).slice(0, 3);
+  return [...new Set((item.genre_ids || []).map((id) => GENRES[id]).filter(Boolean))].slice(0, 3);
+}
 
 const HOME_STATE_KEY = "prince:home";
 const SPLASH_SEEN_KEY = "prince:splash-seen";
@@ -64,6 +84,7 @@ function savePlayerState(patch) {
 const catalogue = document.getElementById("catalogue");
 const statusMessage = document.getElementById("status-message");
 const billboard = document.getElementById("billboard");
+const topbar = document.querySelector(".topbar");
 const searchInput = document.getElementById("search-input");
 const clearSearchButton = document.querySelector(".clear-search");
 const playerFrame = document.getElementById("content-frame");
@@ -113,7 +134,10 @@ function getYear(media) {
 }
 
 function setLoading() {
-  catalogue.innerHTML = Array.from({ length: 8 }, () => '<div class="skeleton" aria-hidden="true"></div>').join("");
+  const cards = Array.from({ length: 10 }, () => '<div class="skeleton" aria-hidden="true"></div>').join("");
+  catalogue.innerHTML = state.query
+    ? `<div class="poster-grid">${cards}</div>`
+    : `<section class="row" aria-hidden="true"><div class="row-title-skeleton"></div><div class="row-track">${cards}</div></section>`;
 }
 
 function setStatus(message) {
@@ -130,24 +154,52 @@ function getDemoItems(view, query) {
   return items.filter((item) => `${getMediaTitle(item)} ${item.overview} ${item.genre}`.toLocaleLowerCase("fr").includes(normalizedQuery));
 }
 
-async function fetchCatalogue(view, query, requestId) {
-  const language = "fr-FR";
-  let endpoint;
-  if (query) {
-    endpoint = `/search/multi?query=${encodeURIComponent(query)}&include_adult=false&language=${language}`;
-  } else if (view === "home") {
-    endpoint = `/trending/all/week?language=${language}`;
-  } else {
-    endpoint = `/discover/${view}?sort_by=popularity.desc&include_adult=false&language=${language}`;
+function getDemoRows(view, query) {
+  if (query) return [{ title: "", items: getDemoItems(view, query) }];
+  if (view === "movie") return [{ title: "Films de démonstration", items: DEMO_CATALOGUE.movie }];
+  if (view === "tv") return [{ title: "Séries de démonstration", items: DEMO_CATALOGUE.tv }];
+  return [
+    { title: "Top 10 du moment", items: getDemoItems("home", ""), ranked: true },
+    { title: "Films", items: DEMO_CATALOGUE.movie },
+    { title: "Séries", items: DEMO_CATALOGUE.tv }
+  ];
+}
+
+// Les rangées affichées pour chaque onglet. La recherche reste une simple grille.
+function getRowPlan(view, query) {
+  const lang = "fr-FR";
+  const common = `include_adult=false&language=${lang}`;
+  if (query) return [{ title: "", path: `/search/multi?query=${encodeURIComponent(query)}&${common}` }];
+  const popularMovies = { title: "Films populaires", path: `/discover/movie?sort_by=popularity.desc&${common}` };
+  const popularShows = { title: "Séries populaires", path: `/discover/tv?sort_by=popularity.desc&${common}` };
+  const topMovies = { title: "Films les mieux notés", path: `/movie/top_rated?language=${lang}` };
+  const topShows = { title: "Séries les mieux notées", path: `/tv/top_rated?language=${lang}` };
+  if (view === "movie") {
+    return [popularMovies, topMovies, { title: "Actuellement au cinéma", path: `/movie/now_playing?language=${lang}&region=FR` }];
   }
-  const separator = endpoint.includes("?") ? "&" : "?";
-  const response = await fetch(`https://api.themoviedb.org/3${endpoint}${separator}api_key=${encodeURIComponent(getConfig().TMDB_KEY)}`, {
-    headers: { Accept: "application/json" }
-  });
-  if (!response.ok) throw new Error(`TMDB a répondu avec le statut ${response.status}.`);
-  const data = await response.json();
+  if (view === "tv") {
+    return [popularShows, topShows, { title: "Diffusées en ce moment", path: `/tv/on_the_air?language=${lang}` }];
+  }
+  return [{ title: "Top 10 du moment", path: `/trending/all/week?language=${lang}`, ranked: true }, popularMovies, popularShows, topMovies, topShows];
+}
+
+async function fetchCatalogue(view, query, requestId) {
+  const plan = getRowPlan(view, query);
+  const results = await Promise.allSettled(plan.map((row) => fetchTmdb(row.path)));
   if (requestId !== state.requestId) return null;
-  return (data.results || []).filter((item) => item.media_type !== "person");
+  const rows = [];
+  let firstError = null;
+  results.forEach((result, index) => {
+    if (result.status === "rejected") {
+      firstError = firstError || result.reason;
+      return;
+    }
+    let items = (result.value.results || []).filter((item) => item.media_type !== "person");
+    if (!query) items = items.filter((item) => item.poster_path);
+    if (items.length || query) rows.push({ title: plan[index].title, items, ranked: Boolean(plan[index].ranked) });
+  });
+  if (!rows.length && firstError) throw firstError;
+  return rows.length ? rows : [{ title: "", items: [] }];
 }
 
 async function fetchTmdb(endpoint) {
@@ -167,7 +219,28 @@ function formatRating(item) {
   return rating > 0 ? rating.toFixed(1).replace(".", ",") : "";
 }
 
-function renderCards(items) {
+function cardHtml(item) {
+  const title = getMediaTitle(item);
+  const type = getMediaType(item);
+  const colorStart = item.colors ? item.colors[0] : "#2b2b2b";
+  const colorEnd = item.colors ? item.colors[1] : "#161616";
+  const media = JSON.stringify({ id: item.id, title, type }).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
+  const base = "https://image.tmdb.org/t/p";
+  const art = item.poster_path
+    ? `<img src="${base}/w342${item.poster_path}" srcset="${base}/w185${item.poster_path} 185w, ${base}/w342${item.poster_path} 342w, ${base}/w500${item.poster_path} 500w" sizes="(max-width: 820px) 31vw, 15vw" alt="" loading="lazy" decoding="async">`
+    : `<span class="poster-fallback" style="--from:${colorStart};--to:${colorEnd}"><span>${escapeHtml(title)}</span></span>`;
+  return `<article class="media-card">
+      <button class="poster" type="button" data-media="${media}" aria-label="Regarder ${escapeHtml(title)}">
+        ${art}
+        ${type === "tv" ? '<span class="poster-type">Série</span>' : ""}
+        <span class="poster-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"></path></svg></span>
+      </button>
+      <div class="card-meta"><span class="card-title">${escapeHtml(title)}</span><span class="card-year">${escapeHtml(getYear(item))}</span></div>
+    </article>`;
+}
+
+// Résultats de recherche : une grille.
+function renderGrid(items) {
   const count = document.getElementById("catalogue-count");
   if (!items.length) {
     catalogue.innerHTML = `<p class="empty-state">${state.query ? "Aucun résultat pour cette recherche. Essayez un autre titre." : "Aucun titre à afficher pour le moment."}</p>`;
@@ -175,72 +248,172 @@ function renderCards(items) {
     return;
   }
   if (count) count.textContent = `${items.length} titre${items.length > 1 ? "s" : ""}`;
-  catalogue.innerHTML = items.map((item) => {
-    const title = getMediaTitle(item);
-    const type = getMediaType(item);
-    const rating = formatRating(item);
-    const colorStart = item.colors ? item.colors[0] : "#1d2660";
-    const colorEnd = item.colors ? item.colors[1] : "#0b1030";
-    const media = JSON.stringify({ id: item.id, title, type }).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
-    const base = "https://image.tmdb.org/t/p";
-    const art = item.poster_path
-      ? `<img src="${base}/w342${item.poster_path}" srcset="${base}/w185${item.poster_path} 185w, ${base}/w342${item.poster_path} 342w, ${base}/w500${item.poster_path} 500w" sizes="(max-width: 820px) 46vw, 200px" alt="" loading="lazy" decoding="async">`
-      : `<span class="poster-fallback" style="--from:${colorStart};--to:${colorEnd}"><span>${escapeHtml(title)}</span></span>`;
-    return `<article class="media-card">
-      <button class="poster" type="button" data-media="${media}" aria-label="Regarder ${escapeHtml(title)}">
-        ${art}
-        <span class="poster-type">${type === "tv" ? "Série" : "Film"}</span>
-        ${rating ? `<span class="poster-rating">★ ${rating}</span>` : ""}
-        <span class="poster-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"></path></svg></span>
-      </button>
-      <div class="card-meta"><span class="card-title">${escapeHtml(title)}</span><span class="card-year">${escapeHtml(getYear(item))}</span></div>
-    </article>`;
-  }).join("");
+  catalogue.innerHTML = `<div class="poster-grid">${items.map(cardHtml).join("")}</div>`;
 }
 
-function pickFeatured(items) {
-  return items.find((item) => item.backdrop_path && item.overview)
-    || items.find((item) => item.backdrop_path)
-    || items[0];
-}
+const ARROW_PREV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>';
+const ARROW_NEXT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
 
-function setBillboard(item) {
-  if (!billboard) return;
-  if (!item) {
-    billboard.hidden = true;
-    state.featured = null;
+// Accueil et onglets : des rangées d'affiches qui défilent sur le côté.
+function renderRows(rows) {
+  const visible = rows.filter((row) => row.items.length);
+  if (!visible.length) {
+    renderGrid([]);
     return;
   }
+  const rowHtml = (row) => {
+    const items = row.ranked ? row.items.slice(0, 10) : row.items;
+    const cards = row.ranked
+      ? items.map((item, index) => `<div class="rank-card"><span class="rank-num" aria-hidden="true">${index + 1}</span>${cardHtml(item)}</div>`).join("")
+      : items.map(cardHtml).join("");
+    return `<section class="row${row.ranked ? " row-ranked" : ""}" aria-label="${escapeHtml(row.title)}">
+    <h2 class="row-title">${escapeHtml(row.title)}</h2>
+    <div class="row-viewport">
+      <button class="row-arrow row-arrow-prev" type="button" data-dir="prev" aria-label="Précédent">${ARROW_PREV}</button>
+      <div class="row-track">${cards}</div>
+      <button class="row-arrow row-arrow-next" type="button" data-dir="next" aria-label="Suivant">${ARROW_NEXT}</button>
+    </div>
+  </section>`;
+  };
+  catalogue.innerHTML = visible.map(rowHtml).join("");
+  window.requestAnimationFrame(() => catalogue.querySelectorAll(".row-track").forEach(updateRowEdges));
+}
+
+function setActiveView(view) {
+  document.querySelectorAll(".nav-link.is-active, .tab.is-active").forEach((node) => node.classList.remove("is-active"));
+  document.querySelectorAll(`.nav-link[data-view="${view}"], .tab[data-view="${view}"]`).forEach((node) => node.classList.add("is-active"));
+}
+
+function updateRowEdges(track) {
+  const viewport = track.parentElement;
+  viewport.classList.toggle("at-start", track.scrollLeft < 8);
+  viewport.classList.toggle("at-end", track.scrollLeft + track.clientWidth >= track.scrollWidth - 8);
+}
+
+// Choisit jusqu'à 8 titres avec une grande image pour faire défiler la bannière.
+function pickHeroList(items) {
+  const withArt = items.filter((item) => item.backdrop_path && item.overview).slice(0, 8);
+  if (withArt.length) return withArt;
+  const loose = items.filter((item) => item.backdrop_path).slice(0, 8);
+  return loose.length ? loose : items.slice(0, 1);
+}
+
+function stopHeroTimer() {
+  window.clearInterval(heroTimer);
+  heroTimer = null;
+}
+
+function startHeroTimer() {
+  stopHeroTimer();
+  if (state.heroList.length < 2 || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+  heroTimer = window.setInterval(() => {
+    if (document.hidden) return;
+    showHero((state.heroIndex + 1) % state.heroList.length);
+  }, HERO_DELAY);
+}
+
+function renderHeroDots() {
+  const dots = document.getElementById("billboard-dots");
+  if (!dots) return;
+  dots.hidden = state.heroList.length < 2;
+  dots.innerHTML = state.heroList.map((item, index) =>
+    `<button type="button" class="hero-dot${index === state.heroIndex ? " is-active" : ""}" data-index="${index}" aria-label="Afficher ${escapeHtml(getMediaTitle(item))}"></button>`
+  ).join("");
+}
+
+function setBillboard(items) {
+  if (!billboard) return;
+  stopHeroTimer();
+  if (!items || !items.length) {
+    billboard.hidden = true;
+    state.featured = null;
+    state.featuredItem = null;
+    state.heroList = [];
+    return;
+  }
+  state.heroList = items;
+  billboard.hidden = false;
+  showHero(0, true);
+  startHeroTimer();
+}
+
+function showHero(index, first = false) {
+  const item = state.heroList[index];
+  if (!item) return;
+  state.heroIndex = index;
   const title = getMediaTitle(item);
   const type = getMediaType(item);
   const rating = formatRating(item);
   const year = getYear(item);
+  const genres = getGenres(item);
   state.featured = { id: item.id, title, type };
+  state.featuredItem = item;
 
-  billboard.hidden = false;
-  billboard.classList.remove("is-loaded");
-  billboard.style.setProperty("--from", item.colors ? item.colors[0] : "#1a2470");
-  billboard.style.setProperty("--to", item.colors ? item.colors[1] : "#0a1030");
+  billboard.style.setProperty("--from", item.colors ? item.colors[0] : "#2b2b2b");
+  billboard.style.setProperty("--to", item.colors ? item.colors[1] : "#141414");
+  document.getElementById("billboard-kind").textContent = type === "tv" ? "Série" : "Film";
   document.getElementById("billboard-title").textContent = title;
   document.getElementById("billboard-overview").textContent = item.overview
     || (type === "tv" ? "Une série à découvrir sur PRINCE MOVIE." : "Un film à découvrir sur PRINCE MOVIE.");
   document.getElementById("billboard-meta").innerHTML = [
-    `<span class="chip-type">${type === "tv" ? "Série" : "Film"}</span>`,
-    year !== "—" ? `<span>${escapeHtml(year)}</span>` : "",
-    rating ? `<span class="chip-rating">★ ${rating}</span>` : ""
+    year !== "—" ? `<span class="meta-year">${escapeHtml(year)}</span>` : "",
+    rating ? `<span class="meta-badge">★ ${rating}</span>` : "",
+    `<span class="meta-badge">${type === "tv" ? "Série" : "Film"}</span>`
   ].join("");
+  const genreLine = document.getElementById("billboard-genres");
+  genreLine.textContent = genres.join(" • ");
+  genreLine.hidden = !genres.length;
   document.getElementById("billboard-play").hidden = false;
+  renderHeroDots();
 
+  // Fondu enchaîné : la nouvelle image arrive par-dessus, puis l'ancienne est retirée.
   const mediaBox = document.getElementById("billboard-media");
-  mediaBox.replaceChildren();
+  if (!item.backdrop_path) {
+    mediaBox.replaceChildren();
+    return;
+  }
+  const image = new Image();
+  image.alt = "";
+  image.decoding = "async";
+  image.addEventListener("load", () => {
+    if (state.heroIndex !== index) return;
+    image.classList.add("is-current");
+    const previous = [...mediaBox.querySelectorAll("img")].filter((node) => node !== image);
+    window.setTimeout(() => previous.forEach((node) => node.remove()), first ? 0 : 900);
+  });
+  image.src = `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`;
+  mediaBox.append(image);
+}
+
+// Fenêtre « Plus d'infos »
+function openInfo() {
+  const item = state.featuredItem;
+  const dialog = document.getElementById("info-dialog");
+  if (!item || !dialog || typeof dialog.showModal !== "function") return;
+  const type = getMediaType(item);
+  const rating = formatRating(item);
+  const year = getYear(item);
+  const genres = getGenres(item);
+  document.getElementById("info-title").textContent = getMediaTitle(item);
+  document.getElementById("info-meta").innerHTML = [
+    year !== "—" ? `<span class="meta-year">${escapeHtml(year)}</span>` : "",
+    rating ? `<span class="meta-badge">★ ${rating}</span>` : "",
+    `<span class="meta-badge">${type === "tv" ? "Série" : "Film"}</span>`
+  ].join("");
+  document.getElementById("info-genres").textContent = genres.join(" • ");
+  document.getElementById("info-overview").textContent = item.overview || "Pas de résumé disponible pour ce titre.";
+  const art = document.getElementById("info-media");
+  art.replaceChildren();
+  art.style.setProperty("--from", item.colors ? item.colors[0] : "#2b2b2b");
+  art.style.setProperty("--to", item.colors ? item.colors[1] : "#141414");
   if (item.backdrop_path) {
     const image = new Image();
     image.alt = "";
-    image.decoding = "async";
-    image.addEventListener("load", () => billboard.classList.add("is-loaded"));
-    image.src = `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`;
-    mediaBox.append(image);
+    image.src = `https://image.tmdb.org/t/p/w780${item.backdrop_path}`;
+    art.append(image);
   }
+  stopHeroTimer();
+  dialog.showModal();
 }
 
 function escapeHtml(value) {
@@ -250,23 +423,28 @@ function escapeHtml(value) {
 }
 
 function updateHeading() {
+  const heading = document.querySelector(".catalogue-heading");
   const title = document.getElementById("section-title");
   const count = document.getElementById("catalogue-count");
   if (count) count.textContent = "";
-  if (state.query) {
-    title.textContent = `Résultats pour « ${state.query} »`;
-  } else if (state.view === "movie") {
-    title.textContent = "Films populaires";
-  } else if (state.view === "tv") {
-    title.textContent = "Séries populaires";
-  } else {
-    title.textContent = "Tendances de la semaine";
-  }
+  heading.hidden = !state.query;
+  if (state.query) title.textContent = `Résultats pour « ${state.query} »`;
 }
 
-function showItems(items) {
-  renderCards(items);
-  setBillboard(state.query ? null : pickFeatured(items));
+// Le bandeau du haut devient plein dès qu'on défile, ou quand il n'y a pas de bandeau (recherche).
+function updateTopbar() {
+  if (!topbar || document.body.dataset.page === "player") return;
+  const plain = !billboard || billboard.hidden;
+  topbar.classList.toggle("is-solid", plain || window.scrollY > 30);
+}
+
+function showContent(rows) {
+  const searching = Boolean(state.query);
+  if (searching) renderGrid(rows[0] ? rows[0].items : []);
+  else renderRows(rows);
+  setBillboard(searching ? null : pickHeroList((rows[0] && rows[0].items) || []));
+  document.querySelector("main").classList.toggle("is-plain", searching || !state.featured);
+  updateTopbar();
 }
 
 async function loadView() {
@@ -275,16 +453,16 @@ async function loadView() {
   setStatus("");
   setLoading();
   if (!hasApiKey()) {
-    showItems(getDemoItems(state.view, state.query));
+    showContent(getDemoRows(state.view, state.query));
     setStatus("Catalogue de démonstration : ajoutez votre clé TMDB dans config.js pour afficher les titres en direct.");
     return;
   }
   try {
-    const items = await fetchCatalogue(state.view, state.query, currentRequest);
-    if (items) showItems(items);
+    const rows = await fetchCatalogue(state.view, state.query, currentRequest);
+    if (rows) showContent(rows);
   } catch (error) {
     if (currentRequest !== state.requestId) return;
-    showItems(getDemoItems(state.view, state.query));
+    showContent(getDemoRows(state.view, state.query));
     setStatus(`Impossible de charger le catalogue en direct (${error.message}). Affichage de la sélection de démonstration.`);
   }
 }
@@ -498,17 +676,16 @@ async function initHomePage() {
     if (["home", "movie", "tv"].includes(saved.view)) state.view = saved.view;
     if (typeof saved.query === "string") state.query = saved.query;
     restoreScroll = Number(saved.scroll) || 0;
-    document.querySelector(".nav-link.is-active")?.classList.remove("is-active");
-    document.querySelector(`.nav-link[data-view="${state.view}"]`)?.classList.add("is-active");
+    setActiveView(state.view);
     searchInput.value = state.query;
     clearSearchButton.hidden = !state.query;
   }
 
-  document.querySelectorAll(".nav-link").forEach((button) => {
+  document.querySelectorAll(".nav-link[data-view], .tab[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
-      document.querySelector(".nav-link.is-active")?.classList.remove("is-active");
-      button.classList.add("is-active");
+      setActiveView(button.dataset.view);
       state.view = button.dataset.view;
+      window.scrollTo({ top: 0 });
       state.query = "";
       searchInput.value = "";
       clearSearchButton.hidden = true;
@@ -517,12 +694,15 @@ async function initHomePage() {
     });
   });
 
+  document.querySelector('.tab[data-action="search"]')?.addEventListener("click", () => {
+    window.scrollTo({ top: 0 });
+    searchInput.focus();
+  });
+
   const searchForm = document.querySelector(".search-form");
   searchForm.addEventListener("submit", (event) => event.preventDefault());
   searchForm.addEventListener("click", (event) => {
-    if (window.matchMedia("(max-width: 760px)").matches && event.target !== searchInput) {
-      searchInput.focus();
-    }
+    if (event.target !== searchInput) searchInput.focus();
   });
   let searchTimer;
   searchInput.addEventListener("input", () => {
@@ -540,16 +720,41 @@ async function initHomePage() {
     loadView();
     searchInput.focus();
   });
-  document.getElementById("explore-button").addEventListener("click", () => {
-    document.querySelector(".catalogue-heading").scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("billboard-info").addEventListener("click", openInfo);
+  const infoDialog = document.getElementById("info-dialog");
+  document.getElementById("info-close").addEventListener("click", () => infoDialog.close());
+  document.getElementById("info-play").addEventListener("click", () => {
+    if (state.featured) openPlayer(state.featured);
+  });
+  infoDialog.addEventListener("click", (event) => {
+    if (event.target === infoDialog) infoDialog.close();
+  });
+  infoDialog.addEventListener("close", startHeroTimer);
+  document.getElementById("billboard-dots").addEventListener("click", (event) => {
+    const dot = event.target.closest(".hero-dot");
+    if (!dot) return;
+    showHero(Number(dot.dataset.index));
+    startHeroTimer();
   });
   document.getElementById("billboard-play").addEventListener("click", () => {
     if (state.featured) openPlayer(state.featured);
   });
   catalogue.addEventListener("click", (event) => {
+    const arrow = event.target.closest(".row-arrow");
+    if (arrow) {
+      const track = arrow.parentElement.querySelector(".row-track");
+      track.scrollBy({ left: (arrow.dataset.dir === "prev" ? -1 : 1) * track.clientWidth * 0.85, behavior: "smooth" });
+      return;
+    }
     const card = event.target.closest("[data-media]");
     if (card) openPlayer(JSON.parse(card.dataset.media));
   });
+
+  // Cache la flèche inutile au début ou à la fin de chaque rangée.
+  catalogue.addEventListener("scroll", (event) => {
+    if (event.target.classList && event.target.classList.contains("row-track")) updateRowEdges(event.target);
+  }, { capture: true, passive: true });
+  window.addEventListener("scroll", updateTopbar, { passive: true });
 
   let scrollTimer;
   window.addEventListener("scroll", () => {
@@ -568,6 +773,7 @@ async function initHomePage() {
     await minimumSplashDuration;
     await dismissSplashScreen(splashSeen);
     if (restoreScroll > 0) window.scrollTo(0, restoreScroll);
+    updateTopbar();
     homeStateReady = true;
   }
 }
