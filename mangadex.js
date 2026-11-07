@@ -53,6 +53,36 @@ function mdConfig() {
   };
 }
 
+// File d'attente : MangaDex limite à ~5 requêtes/s par IP et bloque (403) quand on insiste.
+// Toutes les requêtes passent donc l'une après l'autre, avec un petit intervalle.
+const MD_GAP_MS = 400;
+let mdQueue = Promise.resolve();
+let mdBlockedUntil = 0;
+const mdMemory = new Map();
+
+function mdThrottle(task) {
+  const run = mdQueue.then(task, task);
+  mdQueue = run.then(() => new Promise((resolve) => window.setTimeout(resolve, MD_GAP_MS)), () => new Promise((resolve) => window.setTimeout(resolve, MD_GAP_MS)));
+  return run;
+}
+
+// Cache : les listes et fiches sont gardées 10 minutes (mémoire + sessionStorage), pas les pages de chapitre.
+function mdCacheGet(key) {
+  const hit = mdMemory.get(key);
+  if (hit && hit.expires > Date.now()) return hit.data;
+  try {
+    const stored = JSON.parse(sessionStorage.getItem(`prince:md:${key}`) || "null");
+    if (stored && stored.expires > Date.now()) { mdMemory.set(key, stored); return stored.data; }
+  } catch { /* cache indisponible */ }
+  return null;
+}
+
+function mdCacheSet(key, data) {
+  const entry = { expires: Date.now() + 10 * 60 * 1000, data };
+  mdMemory.set(key, entry);
+  try { sessionStorage.setItem(`prince:md:${key}`, JSON.stringify(entry)); } catch { /* quota plein */ }
+}
+
 async function mdFetch(path, params = {}, attempt = 0) {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([key, value]) => {
@@ -61,10 +91,20 @@ async function mdFetch(path, params = {}, attempt = 0) {
     else query.append(key, value);
   });
   const text = query.toString();
-  const response = await fetch(`${mdProxyBase()}?path=${encodeURIComponent(path)}${text ? `&${text}` : ""}`, { headers: { Accept: "application/json" } });
-  // Limite de requêtes atteinte : on patiente un instant puis on réessaie (deux fois au maximum).
+  const url = `${mdProxyBase()}?path=${encodeURIComponent(path)}${text ? `&${text}` : ""}`;
+  const cacheable = !path.startsWith("/at-home");
+  if (cacheable) {
+    const cached = mdCacheGet(url);
+    if (cached) return cached;
+  }
+  if (Date.now() < mdBlockedUntil) {
+    throw new Error("MangaDex bloque temporairement ce serveur (403). Patientez quelques minutes avant de réessayer.");
+  }
+
+  const response = await mdThrottle(() => fetch(url, { headers: { Accept: "application/json" } }));
+  // Limite atteinte : on patiente puis on réessaie (deux fois au maximum), sans jamais insister.
   if (response.status === 429 && attempt < 2) {
-    const wait = Math.min(Math.max(Number(response.headers.get("Retry-After")) || 1, 1), 4);
+    const wait = Math.min(Math.max(Number(response.headers.get("Retry-After")) || 2, 2), 6);
     await new Promise((resolve) => window.setTimeout(resolve, wait * 1000));
     return mdFetch(path, params, attempt + 1);
   }
@@ -73,10 +113,14 @@ async function mdFetch(path, params = {}, attempt = 0) {
   if (response.status === 404 && !data) {
     throw new Error("Le relais MangaDex est introuvable : ajoutez le fichier api/mangadex.mjs à votre site.");
   }
+  if (response.status === 403) {
+    mdBlockedUntil = Date.now() + 2 * 60 * 1000;
+  }
   if (!response.ok || (data && data.result === "error")) {
     const detail = data && data.errors && data.errors[0] && data.errors[0].detail;
     throw new Error(detail || `MangaDex a répondu avec le statut ${response.status}.`);
   }
+  if (cacheable) mdCacheSet(url, data);
   return data;
 }
 

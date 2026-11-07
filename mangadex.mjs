@@ -6,7 +6,7 @@
 //   /api/mangadex?img=https://…           -> image (couverture ou page), en secours seulement
 
 const API = "https://api.mangadex.org";
-const USER_AGENT = "PrinceMovie/1.0";
+const USER_AGENT = "PrinceMovie/1.1 (+https://prince-movie.vercel.app)";
 const UUID = "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}";
 const ALLOWED_PATHS = [
   /^\/manga$/,
@@ -61,6 +61,13 @@ export default async function handler(req, res) {
 
     const upstream = await fetch(url, { headers: { "User-Agent": USER_AGENT, Accept: "application/json" } });
     const text = await upstream.text();
+
+    // MangaDex répond 403 (page HTML Cloudflare) quand l'IP du serveur est bloquée : on renvoie un
+    // message clair en JSON au lieu de la page brute.
+    if (upstream.status === 403) {
+      res.setHeader("Cache-Control", "no-store");
+      return fail(res, 403, "MangaDex bloque temporairement le serveur du site (403). Réessayez dans quelques minutes.");
+    }
 
     // Une fiche classée érotique ou pornographique n'est jamais renvoyée.
     if (upstream.ok && /^\/manga\/[0-9a-f-]{36}$/i.test(path)) {
