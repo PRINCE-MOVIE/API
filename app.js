@@ -133,34 +133,6 @@ function getYear(media) {
   return date ? date.slice(0, 4) : "—";
 }
 
-// Libellé affiché pour un titre : Film, Série, Animé ou Manga.
-function getKindLabel(item) {
-  const type = getMediaType(item);
-  if (type === "manga") return "Manga";
-  if (item.badge) return item.badge;
-  return type === "tv" ? "Série" : "Film";
-}
-
-// Année, note, état et type, affichés sous le titre de la bannière et dans « Plus d'infos ».
-function metaHtml(item) {
-  const year = getYear(item);
-  const rating = formatRating(item);
-  return [
-    year !== "—" ? `<span class="meta-year">${escapeHtml(year)}</span>` : "",
-    rating ? `<span class="meta-rating">★ ${rating}</span>` : "",
-    item.status ? `<span class="meta-badge">${escapeHtml(item.status)}</span>` : "",
-    `<span class="meta-badge">${escapeHtml(getKindLabel(item))}</span>`
-  ].join("");
-}
-
-const SEARCH_PLACEHOLDERS = {
-  home: "Titres, séries, films",
-  movie: "Rechercher un film",
-  tv: "Rechercher une série",
-  anime: "Rechercher un animé",
-  manga: "Rechercher un manga"
-};
-
 function setLoading() {
   const cards = Array.from({ length: 10 }, () => '<div class="skeleton" aria-hidden="true"></div>').join("");
   catalogue.innerHTML = state.query
@@ -176,7 +148,7 @@ function setStatus(message) {
 function getDemoItems(view, query) {
   const items = view === "home"
     ? [...DEMO_CATALOGUE.movie.slice(0, 4), ...DEMO_CATALOGUE.tv.slice(0, 4)]
-    : (DEMO_CATALOGUE[view] || []);
+    : DEMO_CATALOGUE[view];
   if (!query) return items;
   const normalizedQuery = query.toLocaleLowerCase("fr");
   return items.filter((item) => `${getMediaTitle(item)} ${item.overview} ${item.genre}`.toLocaleLowerCase("fr").includes(normalizedQuery));
@@ -184,7 +156,6 @@ function getDemoItems(view, query) {
 
 function getDemoRows(view, query) {
   if (query) return [{ title: "", items: getDemoItems(view, query) }];
-  if (view === "anime" || view === "manga") return [{ title: "", items: [] }];
   if (view === "movie") return [{ title: "Films de démonstration", items: DEMO_CATALOGUE.movie }];
   if (view === "tv") return [{ title: "Séries de démonstration", items: DEMO_CATALOGUE.tv }];
   return [
@@ -195,43 +166,9 @@ function getDemoRows(view, query) {
 }
 
 // Les rangées affichées pour chaque onglet. La recherche reste une simple grille.
-// Une rangée utilise soit un chemin TMDB (path), soit une fonction (loader) comme pour MangaDex.
 function getRowPlan(view, query) {
   const lang = "fr-FR";
   const common = `include_adult=false&language=${lang}`;
-  const animeBase = `with_genres=16&with_original_language=ja&${common}`;
-  const isAnime = (item) => item.original_language === "ja" && (item.genre_ids || []).includes(16);
-  const daysAgo = (days) => {
-    const date = new Date();
-    date.setDate(date.getDate() - days);
-    return date.toISOString().slice(0, 10);
-  };
-  const today = daysAgo(0);
-  const mangaRow = (title, order, langs) => ({
-    title,
-    type: "manga",
-    loader: () => MangaDex.list({ [`order[${order}]`]: "desc" }, langs)
-  });
-
-  if (view === "manga") {
-    if (query) return [{ title: "", type: "manga", loader: () => MangaDex.search(query) }];
-    return [
-      mangaRow("Mangas populaires en français", "followedCount"),
-      mangaRow("Derniers chapitres en français", "latestUploadedChapter"),
-      mangaRow("Les mieux notés", "rating"),
-      mangaRow("Populaires en anglais", "followedCount", ["en"])
-    ];
-  }
-  if (view === "anime") {
-    if (query) return [{ title: "", path: `/search/multi?query=${encodeURIComponent(query)}&${common}`, filter: isAnime, badge: "Animé" }];
-    return [
-      { title: "Animés populaires", path: `/discover/tv?${animeBase}&sort_by=popularity.desc`, type: "tv", badge: "Animé" },
-      { title: "En cours de diffusion", path: `/discover/tv?${animeBase}&air_date.gte=${daysAgo(14)}&air_date.lte=${today}&sort_by=popularity.desc`, type: "tv", badge: "Animé" },
-      { title: "Les mieux notés", path: `/discover/tv?${animeBase}&sort_by=vote_average.desc&vote_count.gte=500`, type: "tv", badge: "Animé" },
-      { title: "Films d’animation japonais", path: `/discover/movie?${animeBase}&sort_by=popularity.desc`, type: "movie", badge: "Animé" }
-    ];
-  }
-
   if (query) return [{ title: "", path: `/search/multi?query=${encodeURIComponent(query)}&${common}` }];
   const popularMovies = { title: "Films populaires", path: `/discover/movie?sort_by=popularity.desc&${common}` };
   const popularShows = { title: "Séries populaires", path: `/discover/tv?sort_by=popularity.desc&${common}` };
@@ -243,34 +180,23 @@ function getRowPlan(view, query) {
   if (view === "tv") {
     return [popularShows, topShows, { title: "Diffusées en ce moment", path: `/tv/on_the_air?language=${lang}` }];
   }
-  return [
-    { title: "Top 10 du moment", path: `/trending/all/week?language=${lang}`, ranked: true },
-    popularMovies,
-    popularShows,
-    { title: "Animés populaires", path: `/discover/tv?${animeBase}&sort_by=popularity.desc`, type: "tv", badge: "Animé" },
-    mangaRow("Mangas populaires", "followedCount"),
-    topMovies,
-    topShows
-  ];
+  return [{ title: "Top 10 du moment", path: `/trending/all/week?language=${lang}`, ranked: true }, popularMovies, popularShows, topMovies, topShows];
 }
 
 async function fetchCatalogue(view, query, requestId) {
   const plan = getRowPlan(view, query);
-  const results = await Promise.allSettled(plan.map((row) => (row.loader ? row.loader() : fetchTmdb(row.path))));
+  const results = await Promise.allSettled(plan.map((row) => fetchTmdb(row.path)));
   if (requestId !== state.requestId) return null;
   const rows = [];
   let firstError = null;
   results.forEach((result, index) => {
-    const row = plan[index];
     if (result.status === "rejected") {
       firstError = firstError || result.reason;
       return;
     }
     let items = (result.value.results || []).filter((item) => item.media_type !== "person");
-    if (row.filter) items = items.filter(row.filter);
-    items = items.map((item) => ({ ...item, media_type: item.media_type || row.type || getMediaType(item), badge: item.badge || row.badge }));
-    if (!query) items = items.filter((item) => item.poster_path || item.poster_url);
-    if (items.length || query) rows.push({ title: row.title, items, ranked: Boolean(row.ranked) });
+    if (!query) items = items.filter((item) => item.poster_path);
+    if (items.length || query) rows.push({ title: plan[index].title, items, ranked: Boolean(plan[index].ranked) });
   });
   if (!rows.length && firstError) throw firstError;
   return rows.length ? rows : [{ title: "", items: [] }];
@@ -296,25 +222,17 @@ function formatRating(item) {
 function cardHtml(item) {
   const title = getMediaTitle(item);
   const type = getMediaType(item);
-  const kind = type === "manga" ? "Manga" : (item.badge || (type === "tv" ? "Série" : ""));
   const colorStart = item.colors ? item.colors[0] : "#2b2b2b";
   const colorEnd = item.colors ? item.colors[1] : "#161616";
   const media = JSON.stringify({ id: item.id, title, type }).replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;");
   const base = "https://image.tmdb.org/t/p";
-  let art;
-  if (item.poster_url) {
-    const small = escapeHtml(item.poster_url);
-    const large = escapeHtml(item.poster_url_large || item.poster_url);
-    art = `<img src="${small}" srcset="${small} 256w, ${large} 512w" sizes="(max-width: 820px) 31vw, 15vw" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer">`;
-  } else if (item.poster_path) {
-    art = `<img src="${base}/w342${item.poster_path}" srcset="${base}/w185${item.poster_path} 185w, ${base}/w342${item.poster_path} 342w, ${base}/w500${item.poster_path} 500w" sizes="(max-width: 820px) 31vw, 15vw" alt="" loading="lazy" decoding="async">`;
-  } else {
-    art = `<span class="poster-fallback" style="--from:${colorStart};--to:${colorEnd}"><span>${escapeHtml(title)}</span></span>`;
-  }
+  const art = item.poster_path
+    ? `<img src="${base}/w342${item.poster_path}" srcset="${base}/w185${item.poster_path} 185w, ${base}/w342${item.poster_path} 342w, ${base}/w500${item.poster_path} 500w" sizes="(max-width: 820px) 31vw, 15vw" alt="" loading="lazy" decoding="async">`
+    : `<span class="poster-fallback" style="--from:${colorStart};--to:${colorEnd}"><span>${escapeHtml(title)}</span></span>`;
   return `<article class="media-card">
-      <button class="poster" type="button" data-media="${media}" aria-label="${type === "manga" ? "Lire" : "Regarder"} ${escapeHtml(title)}">
+      <button class="poster" type="button" data-media="${media}" aria-label="Regarder ${escapeHtml(title)}">
         ${art}
-        ${kind ? `<span class="poster-type" data-kind="${escapeHtml(kind)}">${escapeHtml(kind)}</span>` : ""}
+        ${type === "tv" ? '<span class="poster-type">Série</span>' : ""}
         <span class="poster-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"></path></svg></span>
       </button>
       <div class="card-meta"><span class="card-title">${escapeHtml(title)}</span><span class="card-year">${escapeHtml(getYear(item))}</span></div>
@@ -364,8 +282,6 @@ function renderRows(rows) {
 function setActiveView(view) {
   document.querySelectorAll(".nav-link.is-active, .tab.is-active").forEach((node) => node.classList.remove("is-active"));
   document.querySelectorAll(`.nav-link[data-view="${view}"], .tab[data-view="${view}"]`).forEach((node) => node.classList.add("is-active"));
-  document.documentElement.dataset.view = view;
-  if (searchInput) searchInput.placeholder = SEARCH_PLACEHOLDERS[view] || SEARCH_PLACEHOLDERS.home;
 }
 
 function updateRowEdges(track) {
@@ -376,10 +292,9 @@ function updateRowEdges(track) {
 
 // Choisit jusqu'à 8 titres avec une grande image pour faire défiler la bannière.
 function pickHeroList(items) {
-  const hasArt = (item) => Boolean(item.backdrop_path || item.poster_url_large);
-  const withArt = items.filter((item) => hasArt(item) && item.overview).slice(0, 8);
+  const withArt = items.filter((item) => item.backdrop_path && item.overview).slice(0, 8);
   if (withArt.length) return withArt;
-  const loose = items.filter(hasArt).slice(0, 8);
+  const loose = items.filter((item) => item.backdrop_path).slice(0, 8);
   return loose.length ? loose : items.slice(0, 1);
 }
 
@@ -436,52 +351,37 @@ function showHero(index, first = false) {
 
   billboard.style.setProperty("--from", item.colors ? item.colors[0] : "#2b2b2b");
   billboard.style.setProperty("--to", item.colors ? item.colors[1] : "#141414");
-  const isManga = type === "manga";
-  billboard.classList.toggle("is-manga", isManga);
-  document.getElementById("billboard-kind").textContent = getKindLabel(item);
+  document.getElementById("billboard-kind").textContent = type === "tv" ? "Série" : "Film";
   document.getElementById("billboard-title").textContent = title;
   document.getElementById("billboard-overview").textContent = item.overview
-    || (isManga ? "Un manga à découvrir sur PRINCE MOVIE." : type === "tv" ? "Une série à découvrir sur PRINCE MOVIE." : "Un film à découvrir sur PRINCE MOVIE.");
-  document.getElementById("billboard-meta").innerHTML = metaHtml(item);
+    || (type === "tv" ? "Une série à découvrir sur PRINCE MOVIE." : "Un film à découvrir sur PRINCE MOVIE.");
+  document.getElementById("billboard-meta").innerHTML = [
+    year !== "—" ? `<span class="meta-year">${escapeHtml(year)}</span>` : "",
+    rating ? `<span class="meta-badge">★ ${rating}</span>` : "",
+    `<span class="meta-badge">${type === "tv" ? "Série" : "Film"}</span>`
+  ].join("");
   const genreLine = document.getElementById("billboard-genres");
   genreLine.textContent = genres.join(" • ");
   genreLine.hidden = !genres.length;
   document.getElementById("billboard-play").hidden = false;
-  document.getElementById("billboard-play-label").textContent = isManga ? "Lire" : "Lecture";
   renderHeroDots();
-
-  // Manga : la couverture sert de fond flouté et s'affiche en grand sur le côté.
-  const cover = document.getElementById("billboard-cover");
-  if (cover) {
-    cover.replaceChildren();
-    cover.hidden = !isManga || !item.poster_url_large;
-    if (!cover.hidden) {
-      const art = new Image();
-      art.alt = "";
-      art.referrerPolicy = "no-referrer";
-      art.src = item.poster_url_large;
-      cover.append(art);
-    }
-  }
 
   // Fondu enchaîné : la nouvelle image arrive par-dessus, puis l'ancienne est retirée.
   const mediaBox = document.getElementById("billboard-media");
-  const artUrl = isManga ? item.poster_url_large : (item.backdrop_path ? `https://image.tmdb.org/t/p/w1280${item.backdrop_path}` : "");
-  if (!artUrl) {
+  if (!item.backdrop_path) {
     mediaBox.replaceChildren();
     return;
   }
   const image = new Image();
   image.alt = "";
   image.decoding = "async";
-  if (isManga) image.referrerPolicy = "no-referrer";
   image.addEventListener("load", () => {
     if (state.heroIndex !== index) return;
     image.classList.add("is-current");
     const previous = [...mediaBox.querySelectorAll("img")].filter((node) => node !== image);
     window.setTimeout(() => previous.forEach((node) => node.remove()), first ? 0 : 900);
   });
-  image.src = artUrl;
+  image.src = `https://image.tmdb.org/t/p/w1280${item.backdrop_path}`;
   mediaBox.append(image);
 }
 
@@ -495,28 +395,18 @@ function openInfo() {
   const year = getYear(item);
   const genres = getGenres(item);
   document.getElementById("info-title").textContent = getMediaTitle(item);
-  document.getElementById("info-meta").innerHTML = metaHtml(item);
-  document.getElementById("info-play-label").textContent = type === "manga" ? "Lire" : "Lecture";
+  document.getElementById("info-meta").innerHTML = [
+    year !== "—" ? `<span class="meta-year">${escapeHtml(year)}</span>` : "",
+    rating ? `<span class="meta-badge">★ ${rating}</span>` : "",
+    `<span class="meta-badge">${type === "tv" ? "Série" : "Film"}</span>`
+  ].join("");
   document.getElementById("info-genres").textContent = genres.join(" • ");
   document.getElementById("info-overview").textContent = item.overview || "Pas de résumé disponible pour ce titre.";
   const art = document.getElementById("info-media");
   art.replaceChildren();
   art.style.setProperty("--from", item.colors ? item.colors[0] : "#2b2b2b");
   art.style.setProperty("--to", item.colors ? item.colors[1] : "#141414");
-  art.classList.toggle("is-cover", type === "manga");
-  if (type === "manga" && item.poster_url_large) {
-    const blurred = new Image();
-    blurred.alt = "";
-    blurred.className = "info-cover-bg";
-    blurred.referrerPolicy = "no-referrer";
-    blurred.src = item.poster_url_large;
-    const sharp = new Image();
-    sharp.alt = "";
-    sharp.className = "info-cover";
-    sharp.referrerPolicy = "no-referrer";
-    sharp.src = item.poster_url_large;
-    art.append(blurred, sharp);
-  } else if (item.backdrop_path) {
+  if (item.backdrop_path) {
     const image = new Image();
     image.alt = "";
     image.src = `https://image.tmdb.org/t/p/w780${item.backdrop_path}`;
@@ -562,7 +452,7 @@ async function loadView() {
   updateHeading();
   setStatus("");
   setLoading();
-  if (state.view !== "manga" && !hasApiKey()) {
+  if (!hasApiKey()) {
     showContent(getDemoRows(state.view, state.query));
     setStatus("Catalogue de démonstration : ajoutez votre clé TMDB dans config.js pour afficher les titres en direct.");
     return;
@@ -572,11 +462,6 @@ async function loadView() {
     if (rows) showContent(rows);
   } catch (error) {
     if (currentRequest !== state.requestId) return;
-    if (state.view === "manga") {
-      showContent([{ title: "", items: [] }]);
-      setStatus(`Impossible de charger les mangas depuis MangaDex (${error.message}). Réessayez dans un instant.`);
-      return;
-    }
     showContent(getDemoRows(state.view, state.query));
     setStatus(`Impossible de charger le catalogue en direct (${error.message}). Affichage de la sélection de démonstration.`);
   }
@@ -739,7 +624,7 @@ async function checkAvailability(server, resource) {
 }
 
 function openPlayer(media) {
-  const url = new URL(media.type === "manga" ? "manga.html" : "player.html", window.location.href);
+  const url = new URL("player.html", window.location.href);
   url.searchParams.set("id", media.id);
   url.searchParams.set("type", media.type);
   url.searchParams.set("title", media.title);
@@ -788,7 +673,7 @@ async function initHomePage() {
   const saved = readSession(HOME_STATE_KEY);
   let restoreScroll = 0;
   if (saved) {
-    if (["home", "movie", "tv", "anime", "manga"].includes(saved.view)) state.view = saved.view;
+    if (["home", "movie", "tv"].includes(saved.view)) state.view = saved.view;
     if (typeof saved.query === "string") state.query = saved.query;
     restoreScroll = Number(saved.scroll) || 0;
     setActiveView(state.view);
@@ -796,7 +681,6 @@ async function initHomePage() {
     clearSearchButton.hidden = !state.query;
   }
 
-  setActiveView(state.view);
   document.querySelectorAll(".nav-link[data-view], .tab[data-view]").forEach((button) => {
     button.addEventListener("click", () => {
       setActiveView(button.dataset.view);
