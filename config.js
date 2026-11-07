@@ -21,5 +21,12 @@ const CONFIG = {
       lang: false,
       check: "https://vidzy.org/api/{id}"
     }
-  ]
+  ],
+
+  // Manga : source MangaDex (https://mangadex.org), uniquement pour l'onglet Manga.
+  // Aucune clé n'est nécessaire. Seuls les contenus tout public (safe, suggestive) sont affichés.
+  MANGA: {
+    DEFAULT_LANG: "fr",          // langue de lecture proposée en premier (fr, en…)
+    CATALOGUE_LANGS: ["fr"]      // langues utilisées pour remplir les rangées de l'onglet Manga
+  }
 };

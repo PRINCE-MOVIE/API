@@ -3,22 +3,23 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#141414">
-  <meta name="description" content="PRINCE MOVIE : films et séries en français, à regarder où que vous soyez.">
+  <meta name="theme-color" content="#0a0a0a">
+  <meta name="description" content="PRINCE MOVIE : films, séries, animés et mangas en français, à regarder où que vous soyez.">
   <meta property="og:type" content="website">
   <meta property="og:title" content="PRINCE MOVIE">
-  <meta property="og:description" content="Films et séries en français, à regarder où que vous soyez.">
+  <meta property="og:description" content="Films, séries, animés et mangas en français, à regarder où que vous soyez.">
   <meta property="og:image" content="logo-512.png">
-  <title>PRINCE MOVIE — Films et séries en français</title>
+  <title>PRINCE MOVIE — Films, séries, animés et mangas</title>
   <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="logo-192.png">
   <link rel="preconnect" href="https://image.tmdb.org">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Poppins:ital,wght@1,700&display=swap">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,400..900&display=swap">
   <script>try{if(sessionStorage.getItem("prince:splash-seen")==="1")document.documentElement.classList.add("no-splash")}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
   <script src="config.js" defer></script>
+  <script src="mangadex.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
@@ -37,9 +38,11 @@
       <button class="nav-link is-active" data-view="home" type="button">Accueil</button>
       <button class="nav-link" data-view="movie" type="button">Films</button>
       <button class="nav-link" data-view="tv" type="button">Séries</button>
+      <button class="nav-link" data-view="anime" type="button">Animé</button>
+      <button class="nav-link" data-view="manga" type="button">Manga</button>
     </nav>
     <form class="search-form" role="search">
-      <label class="sr-only" for="search-input">Rechercher un film ou une série</label>
+      <label class="sr-only" for="search-input">Rechercher un titre</label>
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg>
       <input id="search-input" type="search" placeholder="Titres, séries, films" autocomplete="off">
       <button class="clear-search" type="button" aria-label="Effacer la recherche" hidden>×</button>
@@ -51,16 +54,17 @@
 
     <section class="billboard" id="billboard" aria-labelledby="billboard-title">
       <div class="billboard-media" id="billboard-media" aria-hidden="true"></div>
+      <div class="billboard-cover" id="billboard-cover" aria-hidden="true" hidden></div>
       <div class="billboard-copy">
         <p class="billboard-eyebrow"><img src="logo.svg" alt="" width="22" height="22"><span id="billboard-kind">Film</span></p>
-        <h2 id="billboard-title">Films et séries en français</h2>
+        <h2 id="billboard-title">Films, séries, animés et mangas</h2>
         <div class="billboard-meta" id="billboard-meta"></div>
         <p class="billboard-overview" id="billboard-overview">Choisissez un titre et lancez la lecture en un clic.</p>
         <p class="billboard-genres" id="billboard-genres" hidden></p>
         <div class="billboard-actions">
           <button class="button button-primary" id="billboard-play" type="button" hidden>
             <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"></path></svg>
-            Lecture
+            <span id="billboard-play-label">Lecture</span>
           </button>
           <button class="button button-ghost" id="billboard-info" type="button">
             <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-stroke"><circle cx="12" cy="12" r="9.5"></circle><path d="M12 11v6M12 7.6v.1"></path></svg>
@@ -77,18 +81,12 @@
         <span class="catalogue-count" id="catalogue-count"></span>
       </div>
       <div class="notice" id="status-message" role="status" aria-live="polite" hidden></div>
-      <section class="catalogue" id="catalogue" aria-label="Catalogue de films et séries"></section>
-
-      <!-- Adsterra : Native Banner -->
-      <div class="ad-native" style="margin:24px 0;text-align:center">
-        <script async="async" data-cfasync="false" src="https://bancadeltempoidea.org/21/987300bdca0a81c56891211da640fdb6"></script>
-        <div id="container-987300bdca0a81c56891211da640fdb6"></div>
-      </div>
+      <section class="catalogue" id="catalogue" aria-label="Catalogue"></section>
     </div>
   </main>
 
   <footer class="footer" data-app-content inert aria-hidden="true">
-    <p>Films et séries en français. Les vidéos sont diffusées par des services tiers.</p>
+    <p>Films, séries et animés en français, diffusés par des services tiers. Les mangas viennent de MangaDex.</p>
     <p class="footer-credit">Créé par Prince Tech</p>
   </footer>
   <dialog class="info" id="info-dialog" aria-labelledby="info-title">
@@ -103,7 +101,7 @@
       <p class="billboard-genres" id="info-genres"></p>
       <button class="button button-primary" id="info-play" type="button">
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"></path></svg>
-        Lecture
+        <span id="info-play-label">Lecture</span>
       </button>
     </div>
   </dialog>
@@ -121,13 +119,18 @@
       <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="m8 3 4 4 4-4"/></svg>
       <span>Séries</span>
     </button>
+    <button class="tab" data-view="anime" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3.500 14 9.500 20.500 12 14 14.500 12 20.500 10 14.500 3.500 12 10 9.500Z"/></svg>
+      <span>Animé</span>
+    </button>
+    <button class="tab" data-view="manga" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 6.500C10 5 7 4.500 4 4.800V18c3-.3 6 .2 8 1.700 2-1.500 5-2 8-1.700V4.800c-3-.3-6 .2-8 1.700ZM12 6.500v13.200"/></svg>
+      <span>Manga</span>
+    </button>
     <button class="tab" data-action="search" type="button">
       <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.500" cy="10.500" r="6.500"/><path d="m15.500 15.500 5 5"/></svg>
       <span>Rechercher</span>
     </button>
   </nav>
-  <!-- Adsterra : Social Bar + Popunder -->
-  <script data-cfasync="false" src="https://bancadeltempoidea.org/14/06d4b4ae00f9a63f48adcee8c7def8ba"></script>
-  <script data-cfasync="false" src="https://aarems.org/1/e92bbee3310efe4ca2295d17aa731419"></script>
 </body>
 </html>
