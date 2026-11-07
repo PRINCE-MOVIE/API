@@ -2,7 +2,6 @@
 // Source MangaDex, utilisée uniquement par l'onglet Manga (index.html) et la page manga.html.
 // Aucune clé n'est nécessaire : l'API publique https://api.mangadex.org est appelée directement.
 
-const MD_API = "https://api.mangadex.org";
 const MD_COVERS = "https://uploads.mangadex.org/covers";
 // Contenu tout public uniquement (pas d'érotique ni de pornographique), quelle que soit la config.
 const MD_RATINGS = ["safe", "suggestive"];
@@ -24,6 +23,27 @@ const MD_LANG_NAMES = {
   "zh-hk": "Chinois (traditionnel)"
 };
 
+// Les appels passent par le relais /api/mangadex (api/mangadex.mjs) : MangaDex refuse les appels
+// directs depuis un autre site.
+function mdProxyBase() {
+  const manga = typeof CONFIG !== "undefined" && CONFIG && typeof CONFIG.MANGA === "object" && CONFIG.MANGA ? CONFIG.MANGA : {};
+  return typeof manga.PROXY === "string" && manga.PROXY ? manga.PROXY : "/api/mangadex";
+}
+
+function mdProxyImage(url) {
+  return `${mdProxyBase()}?img=${encodeURIComponent(url)}`;
+}
+
+// Les images sont d'abord chargées directement ; si MangaDex les refuse, on passe par le relais
+// et on s'en souvient pour la suite.
+function mdUseProxyImages() {
+  try { return localStorage.getItem("prince:md-proxy") === "1"; } catch { return false; }
+}
+
+function mdImage(url) {
+  return url && mdUseProxyImages() ? mdProxyImage(url) : url;
+}
+
 function mdConfig() {
   const manga = typeof CONFIG !== "undefined" && CONFIG && typeof CONFIG.MANGA === "object" && CONFIG.MANGA ? CONFIG.MANGA : {};
   const langs = Array.isArray(manga.CATALOGUE_LANGS) ? manga.CATALOGUE_LANGS.filter((lang) => typeof lang === "string" && lang) : [];
@@ -41,7 +61,7 @@ async function mdFetch(path, params = {}, attempt = 0) {
     else query.append(key, value);
   });
   const text = query.toString();
-  const response = await fetch(`${MD_API}${path}${text ? `?${text}` : ""}`, { headers: { Accept: "application/json" } });
+  const response = await fetch(`${mdProxyBase()}?path=${encodeURIComponent(path)}${text ? `&${text}` : ""}`, { headers: { Accept: "application/json" } });
   // Limite de requêtes atteinte : on patiente un instant puis on réessaie (deux fois au maximum).
   if (response.status === 429 && attempt < 2) {
     const wait = Math.min(Math.max(Number(response.headers.get("Retry-After")) || 1, 1), 4);
@@ -50,6 +70,9 @@ async function mdFetch(path, params = {}, attempt = 0) {
   }
   let data = null;
   try { data = await response.json(); } catch { /* réponse non JSON */ }
+  if (response.status === 404 && !data) {
+    throw new Error("Le relais MangaDex est introuvable : ajoutez le fichier api/mangadex.mjs à votre site.");
+  }
   if (!response.ok || (data && data.result === "error")) {
     const detail = data && data.errors && data.errors[0] && data.errors[0].detail;
     throw new Error(detail || `MangaDex a répondu avec le statut ${response.status}.`);
@@ -100,8 +123,8 @@ function mdNormalize(entry) {
     status: MD_STATUS_FR[attributes.status] || "",
     authors,
     languages: Array.isArray(attributes.availableTranslatedLanguage) ? attributes.availableTranslatedLanguage : [],
-    poster_url: coverBase ? `${coverBase}.256.jpg` : "",
-    poster_url_large: coverBase ? `${coverBase}.512.jpg` : ""
+    poster_url: coverBase ? mdImage(`${coverBase}.256.jpg`) : "",
+    poster_url_large: coverBase ? mdImage(`${coverBase}.512.jpg`) : ""
   };
 }
 
@@ -186,6 +209,26 @@ function mdPageUrls(pages, quality) {
   const files = mode === "data" ? pages.data : pages.dataSaver;
   return files.map((file) => `${pages.baseUrl}/${mode}/${pages.hash}/${file}`);
 }
+
+// Image MangaDex qui ne se charge pas : on réessaie via le relais, puis on prévient le lecteur.
+document.addEventListener("error", (event) => {
+  const image = event.target;
+  if (!image || image.tagName !== "IMG") return;
+  const source = image.currentSrc || image.src || "";
+  const direct = /^https:\/\/([a-z0-9-]+\.)*mangadex\.(org|network)(:\d+)?\//i.test(source);
+  if (direct && !image.dataset.mdProxied) {
+    image.dataset.mdProxied = "1";
+    image.removeAttribute("srcset");
+    image.addEventListener("load", () => {
+      try { localStorage.setItem("prince:md-proxy", "1"); } catch { /* ignoré */ }
+    }, { once: true });
+    image.src = mdProxyImage(source);
+    return;
+  }
+  if (direct || image.dataset.mdProxied || source.includes(`${mdProxyBase()}?img=`)) {
+    if (typeof window.mdOnImageFailed === "function") window.mdOnImageFailed(image);
+  }
+}, true);
 
 const MangaDex = {
   list: mdList,
@@ -403,11 +446,7 @@ function initMangaPage() {
         image.classList.add("is-loaded");
         image.classList.remove("is-broken");
       });
-      image.addEventListener("error", () => {
-        image.classList.add("is-broken");
-        retryPages(false);
-      });
-      image.src = url;
+      image.src = mdImage(url);
       els.pages.append(image);
     });
     els.message.hidden = true;
@@ -428,10 +467,18 @@ function initMangaPage() {
       state.pages = fresh;
       const urls = mdPageUrls(fresh, state.quality);
       [...els.pages.querySelectorAll("img")].forEach((image, index) => {
-        if (!image.classList.contains("is-loaded") && urls[index]) image.src = urls[index];
+        if (!image.classList.contains("is-loaded") && urls[index]) {
+          image.src = image.dataset.mdProxied || mdUseProxyImages() ? mdProxyImage(urls[index]) : urls[index];
+        }
       });
     } catch { /* la page reste signalée comme indisponible */ }
   }
+
+  window.mdOnImageFailed = (image) => {
+    if (!els.pages.contains(image)) return;
+    image.classList.add("is-broken");
+    retryPages(false);
+  };
 
   els.pages.addEventListener("click", (event) => {
     if (event.target.classList && event.target.classList.contains("is-broken")) retryPages(true);
