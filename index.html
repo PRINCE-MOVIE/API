@@ -3,93 +3,122 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#000000">
-  <meta name="description" content="RolphMovie : films, séries et animés en français, à regarder où que vous soyez.">
+  <meta name="theme-color" content="#141414">
+  <meta name="description" content="PRINCE MOVIE : films et séries en français, à regarder où que vous soyez.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="RolphMovie">
-  <meta property="og:description" content="Films, séries et animés en français, à regarder où que vous soyez.">
+  <meta property="og:title" content="PRINCE MOVIE">
+  <meta property="og:description" content="Films et séries en français, à regarder où que vous soyez.">
   <meta property="og:image" content="logo-512.png">
-  <title>RolphMovie — Films, séries et animés en français</title>
+  <title>PRINCE MOVIE — Films et séries en français</title>
   <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="apple-touch-icon" href="logo-192.png">
   <link rel="preconnect" href="https://image.tmdb.org">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&family=Poppins:wght@600;700&family=Syne:wght@700;800&display=swap">
-  <script>try{if(sessionStorage.getItem("rolph:splash-seen")==="1")document.documentElement.classList.add("no-splash")}catch(e){}</script>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&family=Poppins:ital,wght@1,700&display=swap">
+  <script>try{if(sessionStorage.getItem("prince:splash-seen")==="1")document.documentElement.classList.add("no-splash")}catch(e){}</script>
   <link rel="stylesheet" href="style.css">
   <script src="config.js" defer></script>
   <script src="app.js" defer></script>
 </head>
 <body>
-  <div class="splash-screen" id="splash-screen" role="status" aria-live="polite" aria-label="Chargement de RolphMovie">
+  <div class="splash-screen" id="splash-screen" role="status" aria-live="polite" aria-label="Chargement de PRINCE MOVIE">
     <div class="splash-content">
-      <img class="splash-logo" src="logo.svg" alt="" width="104" height="104">
-      <span class="splash-brand"><b>Rolph</b><span class="movie">Movie</span></span>
+      <img class="splash-logo" src="logo-full.svg" alt="" width="328" height="104">
       <span class="splash-spinner" aria-hidden="true"></span>
     </div>
   </div>
 
   <header class="topbar" data-app-content inert aria-hidden="true">
-    <a class="brand" href="index.html" aria-label="RolphMovie, accueil">
-      <img class="brand-mark" src="logo.svg" alt="" width="40" height="40">
-      <span class="brand-word"><b>Rolph</b><span class="movie">Movie</span></span>
+    <a class="brand" href="index.html" aria-label="PRINCE MOVIE, accueil">
+      <img class="brand-logo" src="logo-full.svg" alt="" width="151" height="48">
     </a>
     <nav class="main-nav" aria-label="Navigation principale">
       <button class="nav-link is-active" data-view="home" type="button">Accueil</button>
       <button class="nav-link" data-view="movie" type="button">Films</button>
       <button class="nav-link" data-view="tv" type="button">Séries</button>
-      <button class="nav-link" data-view="anime" type="button">Animés</button>
-      <button class="nav-link" data-view="new" type="button">Nouveautés</button>
-      <button class="nav-link" data-view="top" type="button">Mieux notés</button>
-      <button class="nav-link" data-view="list" type="button">Ma liste</button>
     </nav>
     <form class="search-form" role="search">
-      <label class="sr-only" for="search-input">Rechercher un film, une série ou un animé</label>
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.8" cy="10.8" r="6.8"></circle><path d="m16 16 4.5 4.5"></path></svg>
-      <input id="search-input" type="search" placeholder="Rechercher un titre" autocomplete="off">
+      <label class="sr-only" for="search-input">Rechercher un film ou une série</label>
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="m15.5 15.5 5 5"></path></svg>
+      <input id="search-input" type="search" placeholder="Titres, séries, films" autocomplete="off">
       <button class="clear-search" type="button" aria-label="Effacer la recherche" hidden>×</button>
     </form>
   </header>
 
   <main data-app-content inert aria-hidden="true">
-    <h1 class="sr-only">RolphMovie</h1>
+    <h1 class="sr-only">PRINCE MOVIE</h1>
 
     <section class="billboard" id="billboard" aria-labelledby="billboard-title">
       <div class="billboard-media" id="billboard-media" aria-hidden="true"></div>
       <div class="billboard-copy">
+        <p class="billboard-eyebrow"><img src="logo.svg" alt="" width="22" height="22"><span id="billboard-kind">Film</span></p>
+        <h2 id="billboard-title">Films et séries en français</h2>
         <div class="billboard-meta" id="billboard-meta"></div>
-        <h2 id="billboard-title">Films, séries et animés en français</h2>
         <p class="billboard-overview" id="billboard-overview">Choisissez un titre et lancez la lecture en un clic.</p>
+        <p class="billboard-genres" id="billboard-genres" hidden></p>
         <div class="billboard-actions">
           <button class="button button-primary" id="billboard-play" type="button" hidden>
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m8 5 11 7-11 7z"></path></svg>
-            Regarder
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"></path></svg>
+            Lecture
           </button>
-          <button class="button button-ghost" id="explore-button" type="button">Parcourir le catalogue</button>
+          <button class="button button-ghost" id="billboard-info" type="button">
+            <svg viewBox="0 0 24 24" aria-hidden="true" class="icon-stroke"><circle cx="12" cy="12" r="9.5"></circle><path d="M12 11v6M12 7.6v.1"></path></svg>
+            Plus d’infos
+          </button>
         </div>
+        <div class="hero-dots" id="billboard-dots" hidden></div>
       </div>
     </section>
 
     <div class="shell">
-      <nav class="genre-rail" id="genre-rail" aria-label="Catégories"></nav>
-      <div class="catalogue-heading">
+      <div class="catalogue-heading" hidden>
         <h2 id="section-title">Tendances de la semaine</h2>
         <span class="catalogue-count" id="catalogue-count"></span>
       </div>
       <div class="notice" id="status-message" role="status" aria-live="polite" hidden></div>
-      <section class="catalogue" id="catalogue" aria-label="Catalogue de films, séries et animés"></section>
+      <section class="catalogue" id="catalogue" aria-label="Catalogue de films et séries"></section>
     </div>
   </main>
 
   <footer class="footer" data-app-content inert aria-hidden="true">
-    <a class="brand brand-small" href="index.html" aria-label="RolphMovie, accueil">
-      <img class="brand-mark" src="logo.svg" alt="" width="30" height="30">
-      <span class="brand-word"><b>Rolph</b><span class="movie">Movie</span></span>
-    </a>
-    <p>Films, séries et animés en français. Les vidéos sont diffusées par des services tiers.</p>
-    <nav class="footer-links" aria-label="Informations"><a href="apropos.html">À propos</a><a href="aide.html">Aide</a></nav>
-    <p class="footer-credit">Créé par <strong>Prince Tech</strong></p>
+    <p>Films et séries en français. Les vidéos sont diffusées par des services tiers.</p>
+    <p class="footer-credit">Créé par Prince Tech</p>
   </footer>
+  <dialog class="info" id="info-dialog" aria-labelledby="info-title">
+    <div class="info-media" id="info-media"></div>
+    <button class="info-close" id="info-close" type="button" aria-label="Fermer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 6l12 12M18 6 6 18"/></svg>
+    </button>
+    <div class="info-body">
+      <h2 id="info-title"></h2>
+      <div class="billboard-meta" id="info-meta"></div>
+      <p class="info-overview" id="info-overview"></p>
+      <p class="billboard-genres" id="info-genres"></p>
+      <button class="button button-primary" id="info-play" type="button">
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"></path></svg>
+        Lecture
+      </button>
+    </div>
+  </dialog>
+
+  <nav class="tabbar" data-app-content inert aria-hidden="true" aria-label="Navigation">
+    <button class="tab is-active" data-view="home" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3.500 11 12 3.800l8.500 7.200V20a1 1 0 0 1-1 1H15v-6H9v6H4.500a1 1 0 0 1-1-1Z"/></svg>
+      <span>Accueil</span>
+    </button>
+    <button class="tab" data-view="movie" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.500" y="4.500" width="17" height="15" rx="2"/><path d="M8 4.500v15M16 4.500v15M3.500 9.500H8M3.500 14.500H8M16 9.500h4.500M16 14.500h4.500"/></svg>
+      <span>Films</span>
+    </button>
+    <button class="tab" data-view="tv" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="m8 3 4 4 4-4"/></svg>
+      <span>Séries</span>
+    </button>
+    <button class="tab" data-action="search" type="button">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.500" cy="10.500" r="6.500"/><path d="m15.500 15.500 5 5"/></svg>
+      <span>Rechercher</span>
+    </button>
+  </nav>
 </body>
 </html>
