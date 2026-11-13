@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08040f">
+  <title>Connexion — PRINCE MOVIE</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="login.css">
+  <link rel="stylesheet" href="auth.css">
+  <script src="config.js" defer></script>
+  <script src="auth.js" defer></script>
+  <script src="login.js" defer></script>
+</head>
+<body class="login-body auth-body" data-page="login">
+  <div class="wall" id="wall" aria-hidden="true"></div>
+  <div class="orb orb-a" aria-hidden="true"></div><div class="orb orb-b" aria-hidden="true"></div>
+  <div class="auth-shell">
+    <aside class="auth-side" aria-hidden="true">
+      <img src="logo-full.svg" alt="" width="220" height="70">
+      <h2>Films et séries,<br>sans limites.</h2>
+      <ul>
+        <li><b>Des milliers de titres</b><span>Films, séries et animés en français, anglais et plus.</span></li>
+        <li><b>Reprenez où vous étiez</b><span>Votre historique et vos favoris vous suivent.</span></li>
+        <li><b>Un profil à votre image</b><span>Plus de 100 avatars : animés, stars et mascottes.</span></li>
+      </ul>
+    </aside>
+    <main class="auth-main">
+      <a class="auth-logo-mobile" href="login.html"><img src="logo-full.svg" alt="PRINCE MOVIE" width="170" height="54"></a>
+      <section class="card">
+        <h1>Connexion</h1>
+        <p class="lead">Content de vous revoir. Connectez-vous pour continuer.</p>
+        <form id="auth-form" novalidate>
+          <label class="f"><span>Adresse e-mail</span><input id="f-email" type="email" autocomplete="email" required placeholder="vous@exemple.com"></label>
+          <label class="f"><span>Mot de passe</span>
+            <span class="pw"><input id="f-pw" type="password" autocomplete="current-password" required><button type="button" class="eye" id="eye" aria-label="Afficher le mot de passe">👁</button></span>
+          </label>
+          <a class="forgot-link" href="forgot.html">Mot de passe oublié ?</a>
+          <p class="msg" id="auth-msg" role="alert" hidden></p>
+          <button class="cta" id="auth-submit" type="submit">Se connecter</button>
+        </form>
+        <p class="switch">Pas encore de compte ? <a href="signup.html">Créez-en un</a></p>
+      </section>
+      <p class="auth-foot">Créé par Prince Tech</p>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,47 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08040f">
+  <title>Profils — PRINCE MOVIE</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="login.css">
+  <link rel="stylesheet" href="auth.css">
+  <script src="config.js" defer></script>
+  <script src="auth.js" defer></script>
+  <script src="login.js" defer></script>
+</head>
+<body class="login-body auth-body" data-page="profiles">
+  <div class="wall" id="wall" aria-hidden="true"></div>
+  <div class="orb orb-a" aria-hidden="true"></div><div class="orb orb-b" aria-hidden="true"></div>
+  <div class="auth-shell is-wide">
+    <aside class="auth-side" aria-hidden="true">
+      <img src="logo-full.svg" alt="" width="220" height="70">
+      <h2>Films et séries,<br>sans limites.</h2>
+      <ul>
+        <li><b>Des milliers de titres</b><span>Films, séries et animés en français, anglais et plus.</span></li>
+        <li><b>Reprenez où vous étiez</b><span>Votre historique et vos favoris vous suivent.</span></li>
+        <li><b>Un profil à votre image</b><span>Plus de 100 avatars : animés, stars et mascottes.</span></li>
+      </ul>
+    </aside>
+    <main class="auth-main">
+      <a class="auth-logo-mobile" href="login.html"><img src="logo-full.svg" alt="PRINCE MOVIE" width="170" height="54"></a>
+      <section class="card card-wide">
+        <p class="step" id="profile-step">Étape 2 sur 2</p>
+        <h1>Qui regarde ?</h1>
+        <p class="lead">Choisissez votre profil. Vous pourrez le changer à tout moment dans les paramètres.</p>
+        <div class="tabs" role="tablist" id="profile-tabs"></div>
+        <div class="profile-grid" id="profile-grid"></div>
+        <button class="cta" id="profile-next" type="button" disabled>Commencer</button>
+        <p class="switch" id="profile-cancel" hidden><a id="profile-back" href="index.html">Annuler</a></p>
+      </section>
+      <p class="auth-foot">Créé par Prince Tech</p>
+    </main>
+  </div>
+</body>
+</html>

@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#08040f">
+  <title>Paramètres — PRINCE MOVIE</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap">
+  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="login.css">
+  <link rel="stylesheet" href="pages.css">
+  <script src="config.js" defer></script>
+  <script src="auth.js" defer></script>
+  <script src="settings.js" defer></script>
+</head>
+<body data-page="settings">
+  <header class="topbar is-solid">
+    <a class="brand" href="index.html" aria-label="PRINCE MOVIE, accueil"><img class="brand-logo" src="logo-full.svg" alt="" width="151" height="48"></a>
+    <a class="back-button" href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg><span>Retour</span></a>
+  </header>
+
+  <main class="settings">
+    <h1>Paramètres</h1>
+    <div class="settings-layout">
+      <nav class="settings-nav" aria-label="Sections">
+        <a href="#account" class="is-active">Mon compte</a>
+        <a href="#profile">Profil</a>
+        <a href="#language">Langue</a>
+        <a href="#playback">Lecture</a>
+        <a href="#library">Favoris &amp; historique</a>
+        <a href="#admin" id="nav-admin" hidden>👑 Administrateur</a>
+        <a href="#danger">Zone sensible</a>
+      </nav>
+
+      <div class="settings-body">
+        <section class="s-card" id="account">
+          <h2>Mon compte</h2>
+          <p class="s-desc">Vos informations de connexion.</p>
+          <form id="name-form" class="s-form" novalidate>
+            <label class="f"><span>Nom d’utilisateur</span><input id="s-name" type="text" maxlength="24" autocomplete="nickname"></label>
+            <label class="f"><span>Adresse e-mail</span><input id="s-email" type="email" disabled></label>
+            <p class="msg" id="name-msg" role="status" hidden></p>
+            <button class="button button-primary button-small" type="submit">Enregistrer</button>
+          </form>
+          <hr>
+          <h3>Mot de passe</h3>
+          <form id="pw-form" class="s-form" novalidate>
+            <label class="f"><span>Mot de passe actuel</span><input id="pw-old" type="password" autocomplete="current-password"></label>
+            <label class="f"><span>Nouveau mot de passe</span><input id="pw-new" type="password" autocomplete="new-password" minlength="6"></label>
+            <p class="msg" id="pw-msg" role="status" hidden></p>
+            <button class="button button-ghost button-small" type="submit">Changer le mot de passe</button>
+          </form>
+        </section>
+
+        <section class="s-card" id="profile">
+          <h2>Profil</h2>
+          <p class="s-desc">L’avatar affiché en haut du site.</p>
+          <div class="s-row">
+            <div class="s-avatar" id="s-avatar"></div>
+            <div class="s-grow"><strong id="s-profile-name"></strong><small id="s-profile-kind"></small></div>
+            <a class="button button-ghost button-small" href="profiles.html?next=settings.html">Changer d’avatar</a>
+          </div>
+        </section>
+
+        <section class="s-card" id="language">
+          <h2>Langue</h2>
+          <p class="s-desc">Langue de l’interface et du catalogue (titres, résumés).</p>
+          <div class="s-row">
+            <div class="s-grow"><strong id="s-lang"></strong><small>Les sous-titres se règlent dans « Lecture ».</small></div>
+            <a class="button button-ghost button-small" href="language.html?next=settings.html">Changer de langue</a>
+          </div>
+        </section>
+
+        <section class="s-card" id="playback">
+          <h2>Lecture</h2>
+          <p class="s-desc">Comportement du lecteur vidéo.</p>
+          <label class="s-line"><span><strong>Sous-titres par défaut</strong><small>Demandés aux sources qui les proposent.</small></span>
+            <select id="set-sub">
+              <option value="">Selon ma langue</option>
+              <option value="fr">Français</option><option value="en">Anglais</option><option value="es">Espagnol</option><option value="pt">Portugais</option>
+              <option value="off">Aucun (VO)</option>
+            </select></label>
+          <label class="s-line"><span><strong>Source préférée</strong><small>Utilisée en premier à l’ouverture d’un titre.</small></span>
+            <select id="set-source"></select></label>
+          <label class="s-line s-switch"><span><strong>Proposer l’épisode suivant</strong><small>Affiche une invitation à enchaîner.</small></span>
+            <input type="checkbox" id="set-next" role="switch"></label>
+          <label class="s-line s-switch"><span><strong>Mémoriser ce que je regarde</strong><small>Alimente « Reprendre la lecture ».</small></span>
+            <input type="checkbox" id="set-remember" role="switch"></label>
+          <p class="msg ok" id="set-msg" role="status" hidden>Réglages enregistrés.</p>
+        </section>
+
+        <section class="s-card" id="library">
+          <h2>Favoris &amp; historique</h2>
+          <p class="s-desc">Gérez vos données de visionnage.</p>
+          <div class="s-row"><div class="s-grow"><strong><span id="cnt-fav">0</span> favoris</strong><small>Ajoutés avec le cœur sur les affiches.</small></div>
+            <a class="button button-ghost button-small" href="index.html?view=list">Voir ma liste</a>
+            <button class="button button-ghost button-small" type="button" id="clr-fav">Vider</button></div>
+          <div class="s-row"><div class="s-grow"><strong><span id="cnt-rec">0</span> titres récents</strong><small>Utilisés par « Reprendre la lecture ».</small></div>
+            <button class="button button-ghost button-small" type="button" id="clr-rec">Effacer l’historique</button></div>
+        </section>
+
+        <section class="s-card s-admin" id="admin" hidden>
+          <h2>👑 Administrateur</h2>
+          <p class="s-desc">Visible uniquement par les e-mails listés dans <code>ADMIN_EMAILS</code> (config.js).</p>
+          <div class="stat-row">
+            <div class="stat"><b id="adm-count">…</b><span>Utilisateurs inscrits</span></div>
+            <div class="stat"><b id="adm-mode"></b><span>Mode des comptes</span></div>
+          </div>
+          <p class="notice-line" id="adm-note"></p>
+          <div class="table-wrap"><table class="adm-table"><thead><tr><th>Nom</th><th>E-mail</th><th>Inscrit le</th></tr></thead><tbody id="adm-users"></tbody></table></div>
+        </section>
+
+        <section class="s-card s-danger" id="danger">
+          <h2>Zone sensible</h2>
+          <div class="s-row"><div class="s-grow"><strong>Se déconnecter</strong><small>Vous pourrez vous reconnecter à tout moment.</small></div>
+            <button class="button button-ghost button-small" type="button" id="btn-out">Déconnexion</button></div>
+          <div class="s-row"><div class="s-grow"><strong>Supprimer mon compte</strong><small>Action définitive : favoris et historique sont perdus.</small></div>
+            <button class="button button-danger button-small" type="button" id="btn-del">Supprimer</button></div>
+        </section>
+      </div>
+    </div>
+  </main>
+  <footer class="footer"><p class="footer-credit">Créé par Prince Tech</p></footer>
+</body>
+</html>
