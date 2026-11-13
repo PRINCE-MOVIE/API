@@ -130,55 +130,87 @@
   const PROFILE_KINDS = [["anime", "Personnages d’animé"], ["stars", "Stars du cinéma"], ["fun", "Mascottes & icônes"]];
   const emojiOf = (kind, name) => { const e = (PROFILES[kind] || []).find((x) => x[0] === name); return e && e[2] || ""; };
 
-  // Images : une seule file d'attente (Jikan limite le débit), AniList en secours, TMDB pour les stars.
+  // Images : petite file d'attente (3 requêtes à la fois), délai maximum par requête,
+  // trois services en secours (AniList, Kitsu, Jikan) pour les animés, TMDB pour les stars.
   const wait = (ms) => new Promise((r) => setTimeout(r, ms));
-  const FIX = { "L Lawliet": "L", "Nami": "Nami", "Power": "Power Chainsaw Man", "Asta": "Asta Black Clover", "Genos": "Genos One Punch", "Saitama": "Saitama One Punch Man" };
-  async function animeFromJikan(name) {
-    const r = await fetch(`https://api.jikan.moe/v4/characters?q=${encodeURIComponent(FIX[name] || name)}&limit=1&order_by=favorites&sort=desc`);
-    if (!r.ok) throw new Error("jikan " + r.status);
-    return (await r.json()).data?.[0]?.images?.jpg?.image_url || "";
+  const FIX = { "L Lawliet": "L", "Nami": "Nami One Piece", "Power": "Power Chainsaw Man", "Asta": "Asta Black Clover", "Genos": "Genos One Punch Man", "Saitama": "Saitama One Punch Man", "Gohan": "Son Gohan", "Piccolo": "Piccolo Dragon Ball", "Vegeta": "Vegeta Dragon Ball" };
+  async function getJson(url, opts = {}, ms = 7000) {
+    const ctl = new AbortController();
+    const t = setTimeout(() => ctl.abort(), ms);
+    try {
+      const r = await fetch(url, { ...opts, signal: ctl.signal });
+      if (!r.ok) throw new Error("http " + r.status);
+      return await r.json();
+    } finally { clearTimeout(t); }
   }
-  async function animeFromAniList(name) {
-    const r = await fetch("https://graphql.anilist.co", {
-      method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ query: "query($q:String){Character(search:$q){image{large medium}}}", variables: { q: FIX[name] || name } })
-    });
-    if (!r.ok) throw new Error("anilist " + r.status);
-    const c = (await r.json()).data?.Character?.image;
-    return c?.large || c?.medium || "";
-  }
+  const animeSources = [
+    async (name) => {
+      const j = await getJson("https://graphql.anilist.co", {
+        method: "POST", headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ query: "query($q:String){Character(search:$q){image{large medium}}}", variables: { q: FIX[name] || name } })
+      });
+      const c = j.data && j.data.Character && j.data.Character.image;
+      return (c && (c.large || c.medium)) || "";
+    },
+    async (name) => {
+      const j = await getJson(`https://kitsu.io/api/edge/characters?filter%5Bname%5D=${encodeURIComponent((FIX[name] || name).split(" ")[0])}&page%5Blimit%5D=1`, { headers: { Accept: "application/vnd.api+json" } });
+      const img = j.data && j.data[0] && j.data[0].attributes && j.data[0].attributes.image;
+      return (img && (img.original || img.large)) || "";
+    },
+    async (name) => {
+      const j = await getJson(`https://api.jikan.moe/v4/characters?q=${encodeURIComponent(FIX[name] || name)}&limit=1&order_by=favorites&sort=desc`);
+      return (j.data && j.data[0] && j.data[0].images && j.data[0].images.jpg && j.data[0].images.jpg.image_url) || "";
+    }
+  ];
   async function fetchImage(kind, name) {
     if (kind === "anime") {
-      try { const u = await animeFromAniList(name); if (u) return u; } catch { /* essai suivant */ }
-      try { return await animeFromJikan(name); } catch { return null; }
+      for (const src of animeSources) {
+        try { const u = await src(name); if (u) return u; } catch { await wait(300); }
+      }
+      return "";
     }
     if (kind === "stars" && C.TMDB_KEY) {
       try {
-        const r = await fetch(`https://api.themoviedb.org/3/search/person?api_key=${C.TMDB_KEY}&query=${encodeURIComponent(name)}`);
-        if (!r.ok) return null;
-        const p = (await r.json()).results?.find((x) => x.profile_path);
+        const j = await getJson(`https://api.themoviedb.org/3/search/person?api_key=${C.TMDB_KEY}&query=${encodeURIComponent(name)}`);
+        const p = (j.results || []).find((x) => x.profile_path);
         return p ? `https://image.tmdb.org/t/p/w185${p.profile_path}` : "";
-      } catch { return null; }
+      } catch { return ""; }
     }
     return "";
   }
-  let imgQueue = Promise.resolve();
   const imgPending = {};
+  const imgWaiting = [];
+  let imgActive = 0;
+  function pumpImages() {
+    while (imgActive < 3 && imgWaiting.length) {
+      const job = imgWaiting.shift();
+      imgActive++;
+      fetchImage(job.kind, job.name).then((url) => {
+        if (url) { const c = store.get("pm:img2") || {}; c[job.key] = url; store.set("pm:img2", c); }
+        job.done(url || "");
+      }).finally(() => { imgActive--; delete imgPending[job.key]; setTimeout(pumpImages, job.kind === "anime" ? 120 : 0); });
+    }
+  }
   function profileImage(kind, name) {
     const key = `${kind}:${name}`;
     const cache = store.get("pm:img2") || {};
     if (cache[key]) return Promise.resolve(cache[key]);
     if (kind === "fun") return Promise.resolve("");
     if (imgPending[key]) return imgPending[key];
-    imgPending[key] = imgQueue = imgQueue.then(async () => {
-      const url = await fetchImage(kind, name);
-      if (kind === "anime") await wait(220);
-      if (url) { const c = store.get("pm:img2") || {}; c[key] = url; store.set("pm:img2", c); }
-      delete imgPending[key];
-      return url || "";
-    });
+    imgPending[key] = new Promise((done) => { imgWaiting.push({ kind, name, key, done }); pumpImages(); });
     return imgPending[key];
   }
+  // Une image qui ne se charge pas (lien mort) : on retire du cache et on remet l'avatar de secours.
+  document.addEventListener("error", (e) => {
+    const img = e.target;
+    if (!(img instanceof HTMLImageElement) || !img.parentElement || !img.parentElement.classList.contains("av")) return;
+    const av = img.parentElement;
+    const key = `${av.dataset.kind}:${av.dataset.name}`;
+    const c = store.get("pm:img2") || {};
+    if (c[key]) { delete c[key]; store.set("pm:img2", c); }
+    const em = emojiOf(av.dataset.kind, av.dataset.name);
+    av.innerHTML = em ? `<span class="av-emoji">${esc(em)}</span>` : esc(initials(av.dataset.name || "?"));
+  }, true);
   const initials = (n) => n.split(/\s+/).map((w) => w[0]).slice(0, 2).join("").toUpperCase();
   function avatarHtml(p, extra = "") {
     if (!p) return `<span class="av ${extra}" style="--c:#8b3dff">?</span>`;
@@ -374,7 +406,8 @@
     const admin = isAdmin();
     const box = document.createElement("div");
     box.className = "user-menu";
-    box.innerHTML = `${admin ? `<a class="admin-chip" href="settings.html#admin" title="Administrateur">👑 <span>Admin</span></a>` : ""}
+    box.innerHTML = `<a class="icon-btn" href="settings.html" aria-label="Paramètres" title="Paramètres"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.400 15a1.700 1.700 0 0 0 .3 1.900l.1.100a2 2 0 1 1-2.800 2.800l-.1-.1a1.700 1.700 0 0 0-1.900-.3 1.700 1.700 0 0 0-1 1.500V21a2 2 0 1 1-4 0v-.1a1.700 1.700 0 0 0-1.100-1.500 1.700 1.700 0 0 0-1.900.3l-.1.100a2 2 0 1 1-2.800-2.800l.1-.1a1.700 1.700 0 0 0 .3-1.900 1.700 1.700 0 0 0-1.500-1H3a2 2 0 1 1 0-4h.1a1.700 1.700 0 0 0 1.500-1.100 1.700 1.700 0 0 0-.3-1.900l-.1-.1a2 2 0 1 1 2.800-2.800l.1.100a1.700 1.700 0 0 0 1.900.3H9a1.700 1.700 0 0 0 1-1.500V3a2 2 0 1 1 4 0v.1a1.700 1.700 0 0 0 1 1.500 1.700 1.700 0 0 0 1.900-.3l.1-.1a2 2 0 1 1 2.800 2.800l-.1.100a1.700 1.700 0 0 0-.3 1.900V9a1.700 1.700 0 0 0 1.500 1H21a2 2 0 1 1 0 4h-.1a1.700 1.700 0 0 0-1.500 1Z"/></svg></a>
+      ${admin ? `<a class="admin-chip" href="settings.html#admin" title="Administrateur">👑 <span>Admin</span></a>` : ""}
       <button class="user-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="${esc(me.name)}">${avatarHtml(me.profile)}</button>
       <div class="user-pop" hidden>
         <div class="user-id">${avatarHtml(me.profile, "av-lg")}<div><strong>${esc(me.name)}</strong><small>${esc(me.email)}</small></div></div>

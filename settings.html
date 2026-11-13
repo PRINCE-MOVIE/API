@@ -9,12 +9,12 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;500;600;700;800;900&display=swap">
-  <link rel="stylesheet" href="style.css">
-  <link rel="stylesheet" href="login.css">
-  <link rel="stylesheet" href="pages.css">
-  <script src="config.js" defer></script>
-  <script src="auth.js" defer></script>
-  <script src="settings.js" defer></script>
+  <link rel="stylesheet" href="style.css?v=3">
+  <link rel="stylesheet" href="login.css?v=3">
+  <link rel="stylesheet" href="pages.css?v=3">
+  <script src="config.js?v=3" defer></script>
+  <script src="auth.js?v=3" defer></script>
+  <script src="settings.js?v=3" defer></script>
 </head>
 <body data-page="settings">
   <header class="topbar is-solid">
@@ -23,7 +23,11 @@
   </header>
 
   <main class="settings">
-    <h1>Paramètres</h1>
+    <div class="s-error" id="s-error" role="alert" hidden></div>
+    <div class="s-hero">
+      <div id="hero-avatar"></div>
+      <div><h1 id="hero-name">Paramètres</h1><p id="hero-email">Gérez votre compte et votre lecture.</p><span class="badge" id="hero-badge" hidden>👑 Administrateur</span></div>
+    </div>
     <div class="settings-layout">
       <nav class="settings-nav" aria-label="Sections">
         <a href="#account" class="is-active">Mon compte</a>
