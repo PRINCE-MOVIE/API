@@ -1,21 +1,21 @@
 /* PRINCE MOVIE — feuille de style
-   Fond noir, or pour la marque (logo), rouge pour l'action. Police : Archivo. */
+   Fond noir, mauve pour la marque et l’action. Police : Archivo. */
 
 :root {
-  --bg: #141414;
-  --raised: #1f1f1f;
-  --field: #2b2b2b;
-  --line: #333;
+  --bg: #08040f;
+  --raised: #140b22;
+  --field: #20142f;
+  --line: #31204a;
   --text: #fff;
   --soft: #e5e5e5;
   --muted: #a3a3a3;
   --faint: #737373;
-  --red: #e50914;
+  --red: #8b3dff;
   --green: #46d369;
   --font: "Archivo", "Helvetica Neue", Arial, system-ui, sans-serif;
   --gutter: clamp(16px, 4vw, 56px);
   --header-h: 68px;
-  --gold: linear-gradient(180deg, #fff1c4 0%, #f6cf6a 50%, #c08a2e 100%);
+  --gold: linear-gradient(180deg, #f5ebff 0%, #c79bff 50%, #7c3aed 100%);
   --card-w: clamp(150px, 14.2vw, 224px);
 }
 
@@ -52,7 +52,7 @@ a { color: inherit; text-decoration: none; }
 .splash-screen.is-hidden { opacity: 0; visibility: hidden; pointer-events: none; }
 .splash-content { display: grid; justify-items: center; gap: 16px; }
 .splash-logo { width: auto; height: 104px; max-width: 86vw; animation: splash-in .7s ease both; }
-.splash-spinner { position: relative; width: 112px; height: 2px; margin-top: 6px; overflow: hidden; background: #2a2a2a; }
+.splash-spinner { position: relative; width: 112px; height: 2px; margin-top: 6px; overflow: hidden; background: #2c1d44; }
 .splash-spinner::after {
   content: ""; position: absolute; inset: 0; width: 40%; background: var(--red);
   animation: splash-slide 1.1s ease-in-out infinite;
@@ -138,7 +138,7 @@ a { color: inherit; text-decoration: none; }
   position: relative; isolation: isolate; display: flex; align-items: flex-end;
   min-height: clamp(520px, 86svh, 860px); overflow: hidden;
   padding: calc(var(--header-h) + 24px) var(--gutter) clamp(36px, 5vw, 72px);
-  background: linear-gradient(135deg, var(--from, #2b2b2b), var(--to, #141414));
+  background: linear-gradient(135deg, var(--from, #20142f), var(--to, #08040f));
 }
 .billboard-media { position: absolute; inset: 0; z-index: -2; }
 .billboard-media img {
@@ -149,7 +149,7 @@ a { color: inherit; text-decoration: none; }
 .billboard::before {
   content: ""; position: absolute; inset: 0; z-index: -1;
   background:
-    linear-gradient(0deg, var(--bg) 1%, rgba(20, 20, 20, 0) 46%),
+    linear-gradient(0deg, var(--bg) 1%, rgba(8, 4, 15, 0) 46%),
     linear-gradient(77deg, rgba(0, 0, 0, .78) 0%, rgba(0, 0, 0, 0) 68%);
 }
 .billboard-copy { width: min(100%, 600px); }
@@ -213,12 +213,12 @@ main.is-plain .shell { margin-top: 0; padding-top: calc(var(--header-h) + 28px);
 .row-arrow {
   position: absolute; top: 14px; bottom: 30px; z-index: 3; width: var(--gutter); min-width: 40px;
   display: none; align-items: center; justify-content: center; border: 0; padding: 0;
-  color: #fff; background: rgba(20, 20, 20, .7); opacity: 0; transition: opacity .2s ease, background-color .2s ease;
+  color: #fff; background: rgba(8, 4, 15, .7); opacity: 0; transition: opacity .2s ease, background-color .2s ease;
 }
 .row-arrow svg { width: 28px; height: 28px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; stroke-linejoin: round; }
 .row-arrow-prev { left: 0; }
 .row-arrow-next { right: 0; }
-.row-arrow:hover { background: rgba(20, 20, 20, .9); }
+.row-arrow:hover { background: rgba(8, 4, 15, .9); }
 @media (hover: hover) {
   .row-arrow { display: flex; }
   .row-viewport:hover .row-arrow { opacity: 1; }
@@ -251,7 +251,7 @@ main.is-plain .shell { margin-top: 0; padding-top: calc(var(--header-h) + 28px);
 .poster img { width: 100%; height: 100%; object-fit: cover; }
 .poster-fallback {
   display: grid; place-items: center; width: 100%; height: 100%; padding: 14px; text-align: center;
-  background: linear-gradient(160deg, var(--from, #2b2b2b), var(--to, #161616));
+  background: linear-gradient(160deg, var(--from, #20142f), var(--to, #0d0716));
 }
 .poster-fallback span { font-weight: 800; font-size: 18px; line-height: 1.1; text-wrap: balance; }
 .poster-type {
@@ -280,22 +280,22 @@ main.is-plain .shell { margin-top: 0; padding-top: calc(var(--header-h) + 28px);
 }
 .card-year { display: block; color: var(--faint); font-size: 12.5px; }
 
-.skeleton { aspect-ratio: 2 / 3; border-radius: 4px; background: linear-gradient(90deg, #1c1c1c 25%, #262626 50%, #1c1c1c 75%); background-size: 220% 100%; animation: shimmer 1.4s linear infinite; }
-.row-title-skeleton { width: 220px; height: 22px; margin: 0 var(--gutter); border-radius: 3px; background: #1f1f1f; }
+.skeleton { aspect-ratio: 2 / 3; border-radius: 4px; background: linear-gradient(90deg, #120a1e 25%, #262626 50%, #120a1e 75%); background-size: 220% 100%; animation: shimmer 1.4s linear infinite; }
+.row-title-skeleton { width: 220px; height: 22px; margin: 0 var(--gutter); border-radius: 3px; background: #140b22; }
 @keyframes shimmer { from { background-position: 120% 0; } to { background-position: -120% 0; } }
 
 /* ---------- Fenêtre « Plus d'infos » ---------- */
 .info {
   width: min(720px, calc(100vw - 24px)); max-height: calc(100dvh - 24px); padding: 0; border: 0; border-radius: 10px;
-  overflow: auto; color: var(--soft); background: #181818; box-shadow: 0 24px 70px rgba(0, 0, 0, .75);
+  overflow: auto; color: var(--soft); background: #0f0818; box-shadow: 0 24px 70px rgba(0, 0, 0, .75);
 }
 .info::backdrop { background: rgba(0, 0, 0, .75); }
-.info-media { position: relative; aspect-ratio: 16 / 9; background: linear-gradient(135deg, var(--from, #2b2b2b), var(--to, #141414)); }
+.info-media { position: relative; aspect-ratio: 16 / 9; background: linear-gradient(135deg, var(--from, #20142f), var(--to, #08040f)); }
 .info-media img { width: 100%; height: 100%; object-fit: cover; }
-.info-media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, #181818 2%, rgba(24, 24, 24, 0) 58%); }
+.info-media::after { content: ""; position: absolute; inset: 0; background: linear-gradient(0deg, #0f0818 2%, rgba(24, 24, 24, 0) 58%); }
 .info-close {
   position: absolute; top: 12px; right: 12px; z-index: 2; display: grid; place-items: center;
-  width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; color: #fff; background: rgba(20, 20, 20, .85);
+  width: 38px; height: 38px; padding: 0; border: 0; border-radius: 50%; color: #fff; background: rgba(8, 4, 15, .85);
 }
 .info-close svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2.4; stroke-linecap: round; }
 .info-body { position: relative; z-index: 1; margin-top: -44px; padding: 0 clamp(18px, 4vw, 32px) 28px; }
@@ -377,7 +377,7 @@ main.is-plain .shell { margin-top: 0; padding-top: calc(var(--header-h) + 28px);
   .wordmark { font-size: 22px; }
   .brand-logo { height: 42px; }
   .billboard { min-height: clamp(500px, 78svh, 680px); padding-bottom: 28px; }
-  .billboard::before { background: linear-gradient(0deg, var(--bg) 1%, rgba(20, 20, 20, .7) 40%, rgba(0, 0, 0, .35) 100%); }
+  .billboard::before { background: linear-gradient(0deg, var(--bg) 1%, rgba(8, 4, 15, .7) 40%, rgba(0, 0, 0, .35) 100%); }
   .billboard-media img { object-position: 58% 18%; }
   .billboard-overview { -webkit-line-clamp: 2; }
   .billboard-actions .button { flex: 0 0 auto; padding: 0 22px; font-size: 16px; }
@@ -387,7 +387,7 @@ main.is-plain .shell { margin-top: 0; padding-top: calc(var(--header-h) + 28px);
   .tabbar {
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 60; display: grid; grid-template-columns: repeat(4, 1fr);
     padding: 6px 4px calc(6px + env(safe-area-inset-bottom));
-    background: rgba(20, 20, 20, .97); border-top: 1px solid #2a2a2a;
+    background: rgba(8, 4, 15, .97); border-top: 1px solid #2c1d44;
   }
   .tab {
     display: grid; justify-items: center; gap: 3px; padding: 6px 0; border: 0; background: none;

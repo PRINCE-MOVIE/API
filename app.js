@@ -45,6 +45,7 @@ const GENRES = {
 };
 
 function getGenres(item) {
+  if (PM.lang !== "fr") return [];
   if (item.genre) return item.genre.split("·").map((part) => part.trim()).filter(Boolean).slice(0, 3);
   return [...new Set((item.genre_ids || []).map((id) => GENRES[id]).filter(Boolean))].slice(0, 3);
 }
@@ -95,7 +96,6 @@ const seasonSelect = document.getElementById("season-select");
 const episodeSelect = document.getElementById("episode-select");
 const loadEpisodeButton = document.getElementById("load-episode");
 const langSelector = document.getElementById("lang-selector");
-const adblockSelector = document.getElementById("adblock-toggle");
 
 // Bloque pop-ups, redirections et nouvelles fenêtres publicitaires venant des lecteurs.
 // (pas de allow-popups ni allow-top-navigation)
@@ -108,7 +108,10 @@ const playerRuntime = {
   selectionRequestId: 0,
   availableSeasons: [],
   availableEpisodes: [],
-  currentResource: null
+  currentResource: null,
+  runtimes: {},
+  movieRuntime: 0,
+  startedAt: 0
 };
 
 function getConfig() {
@@ -167,7 +170,7 @@ function getDemoRows(view, query) {
 
 // Les rangées affichées pour chaque onglet. La recherche reste une simple grille.
 function getRowPlan(view, query) {
-  const lang = "fr-FR";
+  const lang = PM.tmdbLang();
   const common = `include_adult=false&language=${lang}`;
   if (query) return [{ title: "", path: `/search/multi?query=${encodeURIComponent(query)}&${common}` }];
   const popularMovies = { title: "Films populaires", path: `/discover/movie?sort_by=popularity.desc&${common}` };
@@ -586,11 +589,9 @@ function loadTarget() {
   const subLang = langSelector ? langSelector.value : (getConfig().DEFAULT_SUB_LANG || "");
   if (subLang && server.lang) target.searchParams.set("ds_lang", subLang);
 
-  // Le sandbox bloque les pop-ups publicitaires, mais beaucoup de lecteurs refusent de
-  // démarrer dans un iframe sandboxé. Il est donc désactivé par défaut : on l'active avec
-  // le menu « Anti-pub », sauf pour les sources marquées sandbox: false dans config.js.
-  const useSandbox = server.sandbox && adblockSelector && adblockSelector.value === "on";
-  if (useSandbox) {
+  // Le sandbox est toujours actif : il bloque les pop-ups et redirections publicitaires des lecteurs.
+  // (Une source peut y déroger avec sandbox: false dans config.js si elle refuse de démarrer.)
+  if (server.sandbox) {
     playerFrame.setAttribute("sandbox", PLAYER_SANDBOX);
   } else {
     playerFrame.removeAttribute("sandbox");
@@ -600,6 +601,9 @@ function loadTarget() {
   playerFrame.setAttribute("loading", "lazy");
   playerFrame.src = target.href;
   playerFrame.hidden = false;
+  playerRuntime.startedAt = Date.now();
+  refreshNextButton();
+  scheduleNextUp();
   updatePlayerStatus(`Chargement de la source ${playerRuntime.currentIndex + 1} sur ${playerRuntime.servers.length}…`);
   checkAvailability(server, resource);
 }
@@ -848,23 +852,18 @@ function initBackButton() {
 function initPlayerPage() {
   initBackButton();
   initFullscreenButton();
-  playerFrame.removeAttribute("sandbox");
+  playerFrame.setAttribute("sandbox", PLAYER_SANDBOX);
   playerFrame.setAttribute("allow", PLAYER_ALLOW);
   playerFrame.setAttribute("allowfullscreen", "");
   playerFrame.setAttribute("loading", "lazy");
   initializeSourceSelector();
-
-  if (adblockSelector) {
-    adblockSelector.value = localStorage.getItem("prince:adblock") === "on" ? "on" : "off";
-    adblockSelector.addEventListener("change", () => {
-      localStorage.setItem("prince:adblock", adblockSelector.value);
-      if (playerRuntime.currentResource) loadTarget();
-    });
-  }
+  nextButton?.addEventListener("click", playNext);
+  document.getElementById("next-up-go")?.addEventListener("click", playNext);
+  document.getElementById("next-up-later")?.addEventListener("click", hideNextUp);
 
   if (langSelector) {
     const savedLang = localStorage.getItem("prince:lang");
-    const defaultLang = savedLang !== null ? savedLang : (getConfig().DEFAULT_SUB_LANG || "fr");
+    const defaultLang = savedLang !== null ? savedLang : (PM.lang || getConfig().DEFAULT_SUB_LANG || "fr");
     if ([...langSelector.options].some((option) => option.value === defaultLang)) langSelector.value = defaultLang;
     langSelector.addEventListener("change", () => {
       localStorage.setItem("prince:lang", langSelector.value);
@@ -927,6 +926,7 @@ function initPlayerPage() {
     loadTvSeasons(id);
   } else {
     chargerFluxMedia(type, id);
+    loadMovieExtras(id);
   }
 }
 
@@ -961,7 +961,7 @@ async function loadTvSeasons(id) {
   showPlayerMessage("Chargement des saisons", "Vérification des saisons de cette série…");
 
   try {
-    const show = await fetchTmdb(`/tv/${encodeURIComponent(id)}?language=fr-FR`);
+    const show = await fetchTmdb(`/tv/${encodeURIComponent(id)}?language=${PM.tmdbLang()}`);
     const seasons = (show.seasons || []).filter((season) =>
       Number.isInteger(season.season_number)
       && season.season_number >= 0
@@ -1002,7 +1002,7 @@ async function loadSeasonEpisodes(id, seasonNumber, autoplay) {
   showPlayerMessage("Chargement des épisodes", `Vérification des épisodes disponibles de la saison ${seasonNumber}…`);
 
   try {
-    const data = await fetchTmdb(`/tv/${encodeURIComponent(id)}/season/${encodeURIComponent(seasonNumber)}?language=fr-FR`);
+    const data = await fetchTmdb(`/tv/${encodeURIComponent(id)}/season/${encodeURIComponent(seasonNumber)}?language=${PM.tmdbLang()}`);
     if (requestId !== playerRuntime.selectionRequestId) return;
     const today = new Date().toISOString().slice(0, 10);
     const episodes = (data.episodes || []).filter((episode) =>
@@ -1011,6 +1011,7 @@ async function loadSeasonEpisodes(id, seasonNumber, autoplay) {
       && (!episode.air_date || episode.air_date <= today)
     );
     playerRuntime.availableEpisodes = episodes.map((episode) => episode.episode_number);
+    episodes.forEach((episode) => { playerRuntime.runtimes[`${seasonNumber}-${episode.episode_number}`] = episode.runtime; });
     setSelectOptions(episodeSelect, episodes.map((episode) => ({
       value: episode.episode_number,
       label: `Épisode ${episode.episode_number}${episode.name ? ` · ${episode.name}` : ""}`
@@ -1043,8 +1044,97 @@ async function loadSeasonEpisodes(id, seasonNumber, autoplay) {
   }
 }
 
-if (document.body.dataset.page === "player") {
-  initPlayerPage();
-} else {
-  initHomePage();
+
+// ---------- Suite : épisode suivant (série) ou film suivant (film) ----------
+const nextButton = document.getElementById("next-button");
+const nextUpBox = document.getElementById("next-up");
+let nextTimer = null;
+let nextMovie = null;
+
+function hideNextUp() { if (nextUpBox) nextUpBox.hidden = true; }
+
+function findNextEpisode() {
+  const r = playerRuntime.currentResource;
+  if (!r || r.type !== "tv") return null;
+  const nextEp = playerRuntime.availableEpisodes.find((n) => n > Number(r.episode));
+  if (nextEp) return { season: Number(r.saison), episode: nextEp };
+  const nextSeason = playerRuntime.availableSeasons.filter((n) => n > Number(r.saison)).sort((a, b) => a - b)[0];
+  return nextSeason !== undefined ? { season: nextSeason, episode: null } : null;
 }
+
+function hasNext() {
+  const r = playerRuntime.currentResource;
+  return Boolean(r && (r.type === "tv" ? findNextEpisode() : nextMovie));
+}
+
+function refreshNextButton() {
+  if (!nextButton) return;
+  const r = playerRuntime.currentResource;
+  nextButton.hidden = !hasNext();
+  const label = nextButton.querySelector("span");
+  if (label && r) label.textContent = PM.tr(r.type === "tv" ? "Épisode suivant" : "Film suivant");
+}
+
+async function loadMovieExtras(id) {
+  try {
+    const [info, reco] = await Promise.all([
+      fetchTmdb(`/movie/${encodeURIComponent(id)}?language=${PM.tmdbLang()}`),
+      fetchTmdb(`/movie/${encodeURIComponent(id)}/recommendations?language=${PM.tmdbLang()}`)
+    ]);
+    playerRuntime.movieRuntime = Number(info.runtime) || 0;
+    const pick = (reco.results || []).find((m) => m.poster_path);
+    nextMovie = pick ? { id: pick.id, title: getMediaTitle(pick), type: "movie" } : null;
+    refreshNextButton();
+    scheduleNextUp();
+  } catch { /* pas de suggestion */ }
+}
+
+function scheduleNextUp() {
+  window.clearTimeout(nextTimer);
+  hideNextUp();
+  const r = playerRuntime.currentResource;
+  if (!r || !hasNext()) return;
+  const minutes = r.type === "tv"
+    ? (playerRuntime.runtimes[`${r.saison}-${r.episode}`] || 42)
+    : (playerRuntime.movieRuntime || 100);
+  // Les lecteurs externes ne disent pas quand la vidéo se termine : on propose la suite
+  // peu avant la fin prévue (durée TMDB). Le bouton « suivant » reste disponible à tout moment.
+  const delay = Math.max(1000, (minutes - 3) * 60000 - (Date.now() - playerRuntime.startedAt));
+  nextTimer = window.setTimeout(showNextUp, delay);
+}
+
+function showNextUp() {
+  if (!nextUpBox || !hasNext()) return;
+  const r = playerRuntime.currentResource;
+  document.getElementById("next-up-title").textContent = r.type === "tv" ? PM.tr("Regarder l’épisode suivant") : PM.tr("Regarder le film suivant");
+  nextUpBox.hidden = false;
+}
+
+async function playNext() {
+  hideNextUp();
+  const r = playerRuntime.currentResource;
+  if (!r) return;
+  if (r.type === "movie") {
+    if (nextMovie) openPlayer(nextMovie);
+    return;
+  }
+  const next = findNextEpisode();
+  if (!next) return;
+  window.scrollTo({ top: 0, behavior: "smooth" });
+  if (next.episode) {
+    episodeSelect.value = String(next.episode);
+    chargerFluxMedia("tv", r.id, next.season, next.episode);
+  } else {
+    seasonSelect.value = String(next.season);
+    await loadSeasonEpisodes(r.id, next.season, true);
+  }
+}
+
+// Démarrage : il faut être connecté, avoir choisi sa langue et son profil.
+(async () => {
+  if (!(await PM.requireLogin())) return;
+  PM.mountUserMenu();
+  if (document.body.dataset.page === "player") initPlayerPage();
+  else initHomePage();
+})();
+
