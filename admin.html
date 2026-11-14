@@ -7,11 +7,11 @@
   <title>Espace propriétaire — PRINCE MOVIE</title>
   <link rel="icon" href="logo.svg" type="image/svg+xml">
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wght@400;600;800;900&display=swap">
-  <link rel="stylesheet" href="style.css?v=3">
-  <link rel="stylesheet" href="login.css?v=3">
-  <script src="config.js?v=3" defer></script>
-  <script src="auth.js?v=3" defer></script>
-  <script src="admin.js?v=3" defer></script>
+  <link rel="stylesheet" href="style.css?v=4">
+  <link rel="stylesheet" href="login.css?v=4">
+  <script src="config.js?v=4" defer></script>
+  <script src="auth.js?v=4" defer></script>
+  <script src="admin.js?v=4" defer></script>
   <style>.ic{width:1.1em;height:1.1em;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;vertical-align:-.18em;color:#c79bff}
     .adm{max-width:1080px;margin:0 auto;padding:28px 16px 60px}
     .adm header{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:22px}
@@ -33,15 +33,7 @@
   <header><h1><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l4.500 4L12 5l4.500 7L21 8l-2 11H5L3 8Z"/></svg> Espace propriétaire</h1><a class="b ghost" href="index.html">← Retour au site</a></header>
   <div class="stats" id="stats"></div>
   <section class="panel">
-    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h3l8 4V6L7 10H4a1 1 0 0 0-1 1Z"/><path d="M19 9a4 4 0 0 1 0 6"/></svg> Annonce pour tous les utilisateurs</h2>
-    <div class="row"><input type="text" id="ann" maxlength="160" placeholder="Ex. : Nouveaux films ajoutés ce week-end !"><button class="b" id="ann-save">Publier</button><button class="b ghost" id="ann-clear">Retirer</button></div>
-  </section>
-  <section class="panel">
-    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.500 6.500a4 4 0 0 0-5 5L3 18l3 3 6.500-6.500a4 4 0 0 0 5-5l-2.500 2.500-2.500-.5-.5-2.500 2.500-2.500Z"/></svg> Mode maintenance</h2>
-    <div class="row"><span id="mt-state" class="tag"></span><button class="b ghost" id="mt-toggle">Activer / désactiver</button><small>Seul le propriétaire peut encore entrer sur le site.</small></div>
-  </section>
-  <section class="panel">
-    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.500"/><path d="M2.500 20c.5-3.500 3.200-5.500 6.500-5.500s6 2 6.500 5.500"/><path d="M16 4.500a3.500 3.500 0 0 1 0 7M18 14.800c2 .7 3.200 2.400 3.500 5.200"/></svg> Utilisateurs inscrits (vrais comptes)</h2>
+    <h2><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="9" cy="8" r="3.500"/><path d="M2.500 20c.5-3.500 3.200-5.500 6.500-5.500s6 2 6.500 5.500"/><path d="M16 4.500a3.500 3.500 0 0 1 0 7M18 14.800c2 .7 3.200 2.400 3.500 5.200"/></svg> Comptes sur cet appareil</h2>
     <div class="row" style="margin-bottom:12px"><input type="search" id="q" placeholder="Rechercher un nom ou un e-mail"><button class="b ghost" id="csv">Exporter en CSV</button></div>
     <div class="tbl"><table><thead><tr><th>Nom</th><th>E-mail</th><th>Inscrit le</th><th>Vu le</th><th>État</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
   </section>

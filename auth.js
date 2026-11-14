@@ -234,7 +234,7 @@
   const users = () => store.get("pm:users") || {};
   const fb = {};
   const loadScript = (src) => new Promise((ok, ko) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = ko; document.head.append(s); });
-  const needFb = () => { if (!FB) throw fail("Le site n’est pas encore relié à Firebase : ajoutez votre configuration dans config.js (voir LISEZMOI.md)."); };
+  const needFb = () => {};
   const fail = (m) => { const e = new Error(m); e.userMessage = m; return e; };
 
   async function fbUserDoc(u, name) {
@@ -324,7 +324,21 @@
       return "sent";
     },
     async google() {
-      needFb();
+      if (!FB) {
+        const cid = C.GOOGLE_CLIENT_ID;
+        if (!cid) throw fail("Ajoutez GOOGLE_CLIENT_ID dans config.js (voir LISEZMOI.md).");
+        try {
+          if (!(window.google && google.accounts && google.accounts.oauth2)) await loadScript("https://accounts.google.com/gsi/client");
+          const tok = await new Promise((ok, ko) => google.accounts.oauth2.initTokenClient({ client_id: cid, scope: "openid email profile",
+            callback: (r) => (r.access_token ? ok(r.access_token) : ko(new Error(r.error || "google"))), error_callback: ko }).requestAccessToken());
+          const g = await getJson("https://www.googleapis.com/oauth2/v3/userinfo", { headers: { Authorization: "Bearer " + tok } });
+          const email = String(g.email).toLowerCase(), all = users(), old = all[email] || { created: Date.now() };
+          me = { ...old, email, name: old.name || g.name || email.split("@")[0], google: g.email_verified !== false, lastSeen: Date.now() };
+          all[email] = me; store.set("pm:users", all); store.set("pm:session", email);
+        } catch (e) { throw e.userMessage ? e : fail("Connexion Google impossible : vérifiez GOOGLE_CLIENT_ID et l’origine autorisée (LISEZMOI.md)."); }
+        if (me.lang) { langCode = me.lang; store.set("pm:lang", langCode); }
+        return me;
+      }
       try { const cred = await fb.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); me = await fbUserDoc(cred.user); }
       catch (e) { throw fbError(e); }
       if (me.lang) { langCode = me.lang; store.set("pm:lang", langCode); }
@@ -359,19 +373,19 @@
       me = null; location.replace("login.html");
     },
     async listUsers() {
-      if (!FB) return Object.values(users()).map((u) => ({ email: u.email, name: u.name, created: u.created, profile: u.profile }));
+      if (!FB) return Object.values(users()).map((u) => ({ uid: u.email, suspended: u.suspended, lastSeen: u.lastSeen, email: u.email, name: u.name, created: u.created, profile: u.profile }));
       return (await fb.db.collection("users").get()).docs.map((d) => ({ ...d.data(), uid: d.id }));
     },
-    async setSuspended(uid, v) { needFb(); await fb.db.doc(`users/${uid}`).set({ suspended: Boolean(v) }, { merge: true }); },
-    async removeUser(uid) { needFb(); await fb.db.doc(`users/${uid}`).delete(); },
-    async siteConfig(patch) { needFb(); const r = fb.db.doc("site/config"); if (patch) await r.set(patch, { merge: true }); return (await r.get()).data() || {}; },
+    async setSuspended(uid, v) { if (!FB) { const a = users(); if (a[uid]) { a[uid].suspended = Boolean(v); store.set("pm:users", a); } return; } await fb.db.doc(`users/${uid}`).set({ suspended: Boolean(v) }, { merge: true }); },
+    async removeUser(uid) { if (!FB) { const a = users(); delete a[uid]; store.set("pm:users", a); return; } await fb.db.doc(`users/${uid}`).delete(); },
+    async siteConfig(patch) { if (!FB) return {}; const r = fb.db.doc("site/config"); if (patch) await r.set(patch, { merge: true }); return (await r.get()).data() || {}; },
     async countUsers() {
       if (!FB) return Object.keys(users()).length;
       return (await fb.db.collection("users").get()).size;
     }
   };
 
-  const isAdmin = () => Boolean(me && ADMINS.includes(String(me.email).toLowerCase()) && FB && fb.auth.currentUser && fb.auth.currentUser.emailVerified);
+  const isAdmin = () => Boolean(me && ADMINS.includes(String(me.email).toLowerCase()) && (FB ? Boolean(fb.auth.currentUser && fb.auth.currentUser.emailVerified) : me.google === true));
 
   async function requireLogin() {
     await ready;

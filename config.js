@@ -5,16 +5,8 @@ const CONFIG = {
   // Administrateurs : seuls ces e-mails voient le nombre d'utilisateurs dans le site.
   ADMIN_EMAILS: ["yolandalabaston@gmail.com"],
 
-  // Comptes en ligne (voir LISEZMOI.md). Laissez vide pour le mode démo local.
-  // Collez ici l'objet firebaseConfig de votre projet Firebase.
-  FIREBASE: {
-    apiKey: "AIzaSyDZkVWTgFCNmMoCyu38m1mUwRAamdG8k80",
-    authDomain: "prince-movie.firebaseapp.com",
-    projectId: "prince-movie",
-    storageBucket: "prince-movie.firebasestorage.app",
-    messagingSenderId: "194045849774",
-    appId: "1:194045849774:web:7d0024e29e63df45577d3f"
-  },
+  // Connexion Google : collez ici votre « ID client OAuth » (voir LISEZMOI.md).
+  GOOGLE_CLIENT_ID: "",
 
   // Langue par défaut des sous-titres demandés aux lecteurs (code ISO 639-1)
   DEFAULT_SUB_LANG: "fr",

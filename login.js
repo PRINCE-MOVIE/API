@@ -37,10 +37,8 @@
   if (eye) eye.addEventListener("click", () => { const p = $("f-pw"); p.type = p.type === "password" ? "text" : "password"; });
 
   if (params.get("suspended")) say($("auth-msg"), "Ce compte a été suspendu par l’administrateur.");
-  else if (["login", "signup", "forgot"].includes(page) && !PM.hasFirebase) { const m = "Le site n’est pas encore relié à Firebase : ajoutez votre configuration dans config.js (voir LISEZMOI.md)."; say($("auth-msg"), m); say($("reset-msg"), m); }
   const sso = $("sso-google");
   if (sso) sso.addEventListener("click", async () => {
-    if (!PM.hasFirebase) { alert("Google ne peut pas fonctionner tant que Firebase n’est pas configuré dans config.js (voir LISEZMOI.md)."); return; }
     say($("auth-msg"), "Ouverture de Google…", true);
     try { await PM.auth.google(); await PM.redirectIfLoggedIn(); } catch (err) { say($("auth-msg"), err.userMessage || "Un problème est survenu. Réessayez."); }
   });
