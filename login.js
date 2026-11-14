@@ -36,6 +36,15 @@
   const eye = $("eye");
   if (eye) eye.addEventListener("click", () => { const p = $("f-pw"); p.type = p.type === "password" ? "text" : "password"; });
 
+  if (params.get("suspended")) say($("auth-msg"), "Ce compte a été suspendu par l’administrateur.");
+  else if (["login", "signup", "forgot"].includes(page) && !PM.hasFirebase) { const m = "Le site n’est pas encore relié à Firebase : ajoutez votre configuration dans config.js (voir LISEZMOI.md)."; say($("auth-msg"), m); say($("reset-msg"), m); }
+  const sso = $("sso-google");
+  if (sso) sso.addEventListener("click", async () => {
+    if (!PM.hasFirebase) { alert("Google ne peut pas fonctionner tant que Firebase n’est pas configuré dans config.js (voir LISEZMOI.md)."); return; }
+    say($("auth-msg"), "Ouverture de Google…", true);
+    try { await PM.auth.google(); await PM.redirectIfLoggedIn(); } catch (err) { say($("auth-msg"), err.userMessage || "Un problème est survenu. Réessayez."); }
+  });
+
   // ----- Connexion et inscription -----
   const form = $("auth-form");
   if (form) form.addEventListener("submit", async (e) => {
@@ -64,7 +73,7 @@
     let picked = me.lang || null;
     const grid = $("lang-grid"), next = $("lang-next");
     grid.innerHTML = PM.LANGS.map((l) =>
-      `<button class="lang-card${l.code === picked ? " is-picked" : ""}" type="button" data-code="${l.code}"><span class="flag">${l.flag}</span>${l.name}</button>`).join("");
+      `<button class="lang-card${l.code === picked ? " is-picked" : ""}" type="button" data-code="${l.code}"><span class="flag">${l.flag}</span><span><b>${l.name}</b><small>${l.hello}</small></span></button>`).join("");
     if (finished) { $("lang-cancel").hidden = false; $("lang-back").href = safeNext() || "settings.html"; document.querySelector(".step").hidden = true; }
     else if (me.profile) document.querySelector(".step").hidden = true;
     next.disabled = !picked;
