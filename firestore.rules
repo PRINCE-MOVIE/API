@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{db}/documents {
+    // Propriétaire = cet e-mail, ET vérifié (Google, ou lien reçu par e-mail).
+    function owner() {
+      return request.auth != null
+        && request.auth.token.email == 'yolandalabaston@gmail.com'
+        && request.auth.token.email_verified == true;
+    }
+    match /users/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid || owner();   // liste complète : propriétaire seulement
+      allow create: if request.auth != null && request.auth.uid == uid && !('suspended' in request.resource.data);
+      allow update: if owner() || (request.auth != null && request.auth.uid == uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['suspended', 'email']));
+      allow delete: if owner() || (request.auth != null && request.auth.uid == uid);
+    }
+    match /site/{doc} {
+      allow read: if request.auth != null;
+      allow write: if owner();
+    }
+  }
+}
