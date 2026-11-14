@@ -12,10 +12,10 @@
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 
   const LANGS = [
-    { code: "fr", name: "Français", flag: "🇫🇷", tmdb: "fr-FR", hello: "Bienvenue sur Prince Movie" },
-    { code: "en", name: "English", flag: "🇬🇧", tmdb: "en-US", hello: "Welcome to Prince Movie" },
-    { code: "es", name: "Español", flag: "🇪🇸", tmdb: "es-ES", hello: "Bienvenido a Prince Movie" },
-    { code: "pt", name: "Português", flag: "🇧🇷", tmdb: "pt-BR", hello: "Bem-vindo ao Prince Movie" }
+    { code: "fr", name: "Français", flag: "🇫🇷", tmdb: "fr-FR" },
+    { code: "en", name: "English", flag: "🇬🇧", tmdb: "en-US" },
+    { code: "es", name: "Español", flag: "🇪🇸", tmdb: "es-ES" },
+    { code: "pt", name: "Português", flag: "🇧🇷", tmdb: "pt-BR" }
   ];
 
   // Dictionnaire : texte français → [anglais, espagnol, portugais]
@@ -234,14 +234,13 @@
   const users = () => store.get("pm:users") || {};
   const fb = {};
   const loadScript = (src) => new Promise((ok, ko) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = ko; document.head.append(s); });
-  const needFb = () => {};
   const fail = (m) => { const e = new Error(m); e.userMessage = m; return e; };
 
   async function fbUserDoc(u, name) {
     const ref = fb.db.doc(`users/${u.uid}`);
     const snap = await ref.get();
-    if (snap.exists) { ref.set({ lastSeen: Date.now() }, { merge: true }).catch(() => {}); return { ...snap.data(), uid: u.uid }; }
-    const doc = { email: u.email, name: name || u.displayName || u.email.split("@")[0], created: Date.now(), lastSeen: Date.now() };
+    if (snap.exists) return { ...snap.data(), uid: u.uid };
+    const doc = { email: u.email, name: name || u.displayName || u.email.split("@")[0], created: Date.now() };
     await ref.set(doc);
     return { ...doc, uid: u.uid };
   }
@@ -267,21 +266,11 @@
     if (c.includes("invalid-credential") || c.includes("wrong-password") || c.includes("user-not-found")) return fail("E-mail ou mot de passe incorrect.");
     if (c.includes("weak-password")) return fail("Mot de passe : 6 caractères minimum.");
     if (c.includes("invalid-email")) return fail("Adresse e-mail invalide.");
-    if (c.includes("configuration-not-found")) return fail("Authentication n’est pas initialisé : Firebase → Authentication → cliquez sur « Commencer », puis activez Google et E-mail/Mot de passe.");
-    if (c.includes("operation-not-allowed")) return fail("Ce mode de connexion n’est pas activé : Firebase → Authentication → Méthode de connexion.");
-    if (c.includes("unauthorized-domain")) return fail("Domaine non autorisé : Firebase → Authentication → Paramètres → Domaines autorisés, ajoutez " + location.hostname);
-    if (c.includes("popup-blocked")) return fail("Le navigateur a bloqué la fenêtre Google. Autorisez les pop-ups puis réessayez.");
-    if (c.includes("popup-closed") || c.includes("cancelled-popup")) return fail("Connexion Google annulée.");
-    if (c.includes("network")) return fail("Pas de connexion internet. Réessayez.");
-    if (c.includes("too-many")) return fail("Trop d’essais. Patientez quelques minutes.");
-    if (c.includes("permission-denied") || c.includes("unavailable") || c.includes("failed-precondition") || c === "not-found") return fail("Base Firestore indisponible : créez-la et publiez firestore.rules (LISEZMOI.md). Code : " + c);
-    if (e.userMessage) return e;
-    return fail("Un problème est survenu (" + (c || e.message || "inconnu") + ").");
+    return e.userMessage ? e : fail("Un problème est survenu. Réessayez.");
   };
 
   const auth = {
     async signUp(email, pw, name) {
-      needFb();
       email = email.trim().toLowerCase(); checkInput(email, pw);
       name = (name || "").trim() || email.split("@")[0];
       if (!FB) {
@@ -293,14 +282,12 @@
         try {
           const cred = await fb.auth.createUserWithEmailAndPassword(email, pw);
           await cred.user.updateProfile({ displayName: name });
-          cred.user.sendEmailVerification().catch(() => {});
           me = await fbUserDoc(cred.user, name);
         } catch (e) { throw fbError(e); }
       }
       return me;
     },
     async signIn(email, pw) {
-      needFb();
       email = email.trim().toLowerCase(); checkInput(email);
       if (!FB) {
         const u = users()[email];
@@ -314,7 +301,6 @@
       return me;
     },
     async reset(email) {
-      needFb();
       email = email.trim().toLowerCase(); checkInput(email);
       if (!FB) {
         if (!users()[email]) throw fail("Aucun compte trouvé avec cet e-mail.");
@@ -322,27 +308,6 @@
       }
       try { await fb.auth.sendPasswordResetEmail(email); } catch (e) { throw fbError(e); }
       return "sent";
-    },
-    async google() {
-      if (!FB) {
-        const cid = C.GOOGLE_CLIENT_ID;
-        if (!cid) throw fail("Ajoutez GOOGLE_CLIENT_ID dans config.js (voir LISEZMOI.md).");
-        try {
-          if (!(window.google && google.accounts && google.accounts.oauth2)) await loadScript("https://accounts.google.com/gsi/client");
-          const tok = await new Promise((ok, ko) => google.accounts.oauth2.initTokenClient({ client_id: cid, scope: "openid email profile",
-            callback: (r) => (r.access_token ? ok(r.access_token) : ko(new Error(r.error || "google"))), error_callback: ko }).requestAccessToken());
-          const g = await getJson("https://www.googleapis.com/oauth2/v3/userinfo", { headers: { Authorization: "Bearer " + tok } });
-          const email = String(g.email).toLowerCase(), all = users(), old = all[email] || { created: Date.now() };
-          me = { ...old, email, name: old.name || g.name || email.split("@")[0], google: g.email_verified !== false, lastSeen: Date.now() };
-          all[email] = me; store.set("pm:users", all); store.set("pm:session", email);
-        } catch (e) { throw e.userMessage ? e : fail("Connexion Google impossible : vérifiez GOOGLE_CLIENT_ID et l’origine autorisée (LISEZMOI.md)."); }
-        if (me.lang) { langCode = me.lang; store.set("pm:lang", langCode); }
-        return me;
-      }
-      try { const cred = await fb.auth.signInWithPopup(new firebase.auth.GoogleAuthProvider()); me = await fbUserDoc(cred.user); }
-      catch (e) { throw fbError(e); }
-      if (me.lang) { langCode = me.lang; store.set("pm:lang", langCode); }
-      return me;
     },
     async signOut() {
       if (FB) await fb.auth.signOut(); else store.set("pm:session", null);
@@ -373,35 +338,20 @@
       me = null; location.replace("login.html");
     },
     async listUsers() {
-      if (!FB) return Object.values(users()).map((u) => ({ uid: u.email, suspended: u.suspended, lastSeen: u.lastSeen, email: u.email, name: u.name, created: u.created, profile: u.profile }));
-      return (await fb.db.collection("users").get()).docs.map((d) => ({ ...d.data(), uid: d.id }));
+      if (!FB) return Object.values(users()).map((u) => ({ email: u.email, name: u.name, created: u.created, profile: u.profile }));
+      return (await fb.db.collection("users").get()).docs.map((d) => d.data());
     },
-    async setSuspended(uid, v) { if (!FB) { const a = users(); if (a[uid]) { a[uid].suspended = Boolean(v); store.set("pm:users", a); } return; } await fb.db.doc(`users/${uid}`).set({ suspended: Boolean(v) }, { merge: true }); },
-    async removeUser(uid) { if (!FB) { const a = users(); delete a[uid]; store.set("pm:users", a); return; } await fb.db.doc(`users/${uid}`).delete(); },
-    async siteConfig(patch) { if (!FB) return {}; const r = fb.db.doc("site/config"); if (patch) await r.set(patch, { merge: true }); return (await r.get()).data() || {}; },
     async countUsers() {
       if (!FB) return Object.keys(users()).length;
       return (await fb.db.collection("users").get()).size;
     }
   };
 
-  const isAdmin = () => Boolean(me && ADMINS.includes(String(me.email).toLowerCase()) && (FB ? Boolean(fb.auth.currentUser && fb.auth.currentUser.emailVerified) : me.google === true));
+  const isAdmin = () => Boolean(me && ADMINS.includes(String(me.email).toLowerCase()));
 
   async function requireLogin() {
     await ready;
     if (!me) { location.replace("login.html"); return false; }
-    if (me.suspended) { await auth.signOut().catch(() => {}); location.replace("login.html?suspended=1"); return false; }
-    let cfg = {}; try { cfg = await auth.siteConfig(); } catch { /* ignoré */ }
-    if (cfg.maintenance && !isAdmin()) {
-      document.documentElement.classList.add("authed");
-      document.body.innerHTML = '<main style="min-height:100vh;display:grid;place-items:center;text-align:center;padding:24px"><div><h1 style="color:#fff;font-size:32px"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.500 6.500a4 4 0 0 0-5 5L3 18l3 3 6.500-6.500a4 4 0 0 0 5-5l-2.500 2.500-2.500-.5-.5-2.500 2.500-2.500Z"/></svg> Maintenance en cours</h1><p>PRINCE MOVIE revient très vite.</p></div></main>';
-      return false;
-    }
-    if (cfg.announcement) {
-      const b = document.createElement("div");
-      b.style.cssText = "position:relative;z-index:70;padding:10px 16px;text-align:center;font-weight:700;font-size:14px;color:#fff;background:linear-gradient(90deg,#6d28d9,#a56bff)";
-      b.innerHTML = '<svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11v2a1 1 0 0 0 1 1h3l8 4V6L7 10H4a1 1 0 0 0-1 1Z"/><path d="M19 9a4 4 0 0 1 0 6"/></svg> '; b.append(cfg.announcement); document.body.prepend(b);
-    }
     if (!me.lang) { location.replace("language.html"); return false; }
     if (!me.profile) { location.replace("profiles.html"); return false; }
     document.documentElement.classList.add("authed");
@@ -457,11 +407,11 @@
     const box = document.createElement("div");
     box.className = "user-menu";
     box.innerHTML = `<a class="icon-btn" href="settings.html" aria-label="Paramètres" title="Paramètres"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.400 15a1.700 1.700 0 0 0 .3 1.900l.1.100a2 2 0 1 1-2.800 2.800l-.1-.1a1.700 1.700 0 0 0-1.900-.3 1.700 1.700 0 0 0-1 1.500V21a2 2 0 1 1-4 0v-.1a1.700 1.700 0 0 0-1.100-1.500 1.700 1.700 0 0 0-1.900.3l-.1.100a2 2 0 1 1-2.800-2.800l.1-.1a1.700 1.700 0 0 0 .3-1.900 1.700 1.700 0 0 0-1.500-1H3a2 2 0 1 1 0-4h.1a1.700 1.700 0 0 0 1.500-1.100 1.700 1.700 0 0 0-.3-1.900l-.1-.1a2 2 0 1 1 2.800-2.800l.1.100a1.700 1.700 0 0 0 1.900.3H9a1.700 1.700 0 0 0 1-1.500V3a2 2 0 1 1 4 0v.1a1.700 1.700 0 0 0 1 1.500 1.700 1.700 0 0 0 1.900-.3l.1-.1a2 2 0 1 1 2.800 2.800l-.1.100a1.700 1.700 0 0 0-.3 1.900V9a1.700 1.700 0 0 0 1.500 1H21a2 2 0 1 1 0 4h-.1a1.700 1.700 0 0 0-1.500 1Z"/></svg></a>
-      ${admin ? `<a class="admin-chip" href="admin.html" title="Administrateur"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l4.500 4L12 5l4.500 7L21 8l-2 11H5L3 8Z"/></svg> <span>Admin</span></a>` : ""}
+      ${admin ? `<a class="admin-chip" href="settings.html#admin" title="Administrateur">👑 <span>Admin</span></a>` : ""}
       <button class="user-btn" type="button" aria-haspopup="true" aria-expanded="false" aria-label="${esc(me.name)}">${avatarHtml(me.profile)}</button>
       <div class="user-pop" hidden>
         <div class="user-id">${avatarHtml(me.profile, "av-lg")}<div><strong>${esc(me.name)}</strong><small>${esc(me.email)}</small></div></div>
-        ${admin ? `<a class="admin-box" href="admin.html"><span class="admin-tag"><svg class="ic" viewBox="0 0 24 24" aria-hidden="true"><path d="M3 8l4.500 4L12 5l4.500 7L21 8l-2 11H5L3 8Z"/></svg> Administrateur</span><b id="admin-count">…</b><small>Utilisateurs inscrits${FB ? "" : " (démo : cet appareil)"}</small></a>` : ""}
+        ${admin ? `<a class="admin-box" href="settings.html#admin"><span class="admin-tag">👑 Administrateur</span><b id="admin-count">…</b><small>Utilisateurs inscrits${FB ? "" : " (démo : cet appareil)"}</small></a>` : ""}
         <a href="index.html?view=list">Ma liste</a>
         <a href="settings.html">Paramètres</a>
         <a href="profiles.html?next=index.html">Changer de profil</a>
