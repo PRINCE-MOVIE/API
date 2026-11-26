@@ -152,7 +152,7 @@ function setStatus(message) {
 function getDemoItems(view, query) {
   const items = view === "home"
     ? [...DEMO_CATALOGUE.movie.slice(0, 4), ...DEMO_CATALOGUE.tv.slice(0, 4)]
-    : DEMO_CATALOGUE[view];
+    : DEMO_CATALOGUE[view === "anime" || view === "doc" ? "tv" : view];
   if (!query) return items;
   const normalizedQuery = query.toLocaleLowerCase("fr");
   return items.filter((item) => `${getMediaTitle(item)} ${item.overview} ${item.genre}`.toLocaleLowerCase("fr").includes(normalizedQuery));
@@ -161,30 +161,46 @@ function getDemoItems(view, query) {
 function getDemoRows(view, query) {
   if (query) return [{ title: "", items: getDemoItems(view, query) }];
   if (view === "movie") return [{ title: "Films de démonstration", items: DEMO_CATALOGUE.movie }];
-  if (view === "tv") return [{ title: "Séries de démonstration", items: DEMO_CATALOGUE.tv }];
+  if (view === "tv" || view === "anime" || view === "doc") return [{ title: "Séries de démonstration", items: DEMO_CATALOGUE.tv }];
   return [
-    { title: "Top 10 du moment", items: getDemoItems("home", ""), ranked: true },
+    { title: "Top 10 du moment", icon: "top", items: getDemoItems("home", ""), ranked: true },
     { title: "Films", items: DEMO_CATALOGUE.movie },
     { title: "Séries", items: DEMO_CATALOGUE.tv }
   ];
 }
 
 // Les rangées affichées pour chaque onglet. La recherche reste une simple grille.
+// icon = pictogramme du titre ; all = onglet ouvert par « Voir tout ».
 function getRowPlan(view, query) {
   const lang = PM.tmdbLang();
   const common = `include_adult=false&language=${lang}`;
   if (query) return [{ title: "", path: `/search/multi?query=${encodeURIComponent(query)}&${common}` }];
-  const popularMovies = { title: "Films populaires", path: `/discover/movie?sort_by=popularity.desc&${common}` };
-  const popularShows = { title: "Séries populaires", path: `/discover/tv?sort_by=popularity.desc&${common}` };
-  const topMovies = { title: "Films les mieux notés", path: `/movie/top_rated?language=${lang}` };
-  const topShows = { title: "Séries les mieux notées", path: `/tv/top_rated?language=${lang}` };
-  if (view === "movie") {
-    return [popularMovies, topMovies, { title: "Actuellement au cinéma", path: `/movie/now_playing?language=${lang}&region=FR` }];
-  }
-  if (view === "tv") {
-    return [popularShows, topShows, { title: "Diffusées en ce moment", path: `/tv/on_the_air?language=${lang}` }];
-  }
-  return [{ title: "Top 10 du moment", path: `/trending/all/week?language=${lang}`, ranked: true }, popularMovies, popularShows, topMovies, topShows];
+  const movieGenre = (title, genre) => ({ title, icon: "movie", all: "movie", path: `/discover/movie?sort_by=popularity.desc&with_genres=${genre}&${common}` });
+  const popularMovies = { title: "Films populaires", icon: "movie", all: "movie", path: `/discover/movie?sort_by=popularity.desc&${common}` };
+  const popularShows = { title: "Séries à ne pas manquer", icon: "tv", all: "tv", path: `/discover/tv?sort_by=popularity.desc&${common}` };
+  const topMovies = { title: "Films les mieux notés", icon: "star", all: "movie", path: `/movie/top_rated?language=${lang}` };
+  const topShows = { title: "Séries les mieux notées", icon: "star", all: "tv", path: `/tv/top_rated?language=${lang}` };
+  const nowPlaying = { title: "Actuellement au cinéma", icon: "movie", all: "movie", path: `/movie/now_playing?language=${lang}&region=FR` };
+  const onAir = { title: "Diffusées en ce moment", icon: "tv", all: "tv", path: `/tv/on_the_air?language=${lang}` };
+  const anime = { title: "Anime", icon: "anime", all: "anime", path: `/discover/tv?sort_by=popularity.desc&with_genres=16&with_original_language=ja&${common}` };
+  const animeMovies = { title: "Films d’anime", icon: "anime", all: "anime", path: `/discover/movie?sort_by=popularity.desc&with_genres=16&with_original_language=ja&${common}` };
+  const animeTop = { title: "Anime les mieux notés", icon: "star", all: "anime", path: `/discover/tv?sort_by=vote_average.desc&vote_count.gte=300&with_genres=16&with_original_language=ja&${common}` };
+  const docMovies = { title: "Documentaires", icon: "doc", all: "doc", path: `/discover/movie?sort_by=popularity.desc&with_genres=99&${common}` };
+  const docShows = { title: "Séries documentaires", icon: "doc", all: "doc", path: `/discover/tv?sort_by=popularity.desc&with_genres=99&${common}` };
+  const action = movieGenre("Films d’action", 28);
+  const comedy = movieGenre("Comédies", 35);
+  const scifi = movieGenre("Science-fiction", 878);
+  const horror = movieGenre("Horreur", 27);
+  const thriller = movieGenre("Thrillers", 53);
+  const family = movieGenre("En famille", 10751);
+  if (view === "movie") return [popularMovies, nowPlaying, topMovies, action, comedy, scifi, horror, thriller, family];
+  if (view === "tv") return [popularShows, onAir, topShows];
+  if (view === "anime") return [anime, animeMovies, animeTop];
+  if (view === "doc") return [docMovies, docShows];
+  return [
+    { title: "Top 10 du moment", icon: "top", path: `/trending/all/week?language=${lang}`, ranked: true },
+    popularMovies, popularShows, anime, nowPlaying, action, comedy, scifi, horror, thriller, topMovies, family, docMovies, topShows
+  ];
 }
 
 async function fetchCatalogue(view, query, requestId) {
@@ -200,7 +216,7 @@ async function fetchCatalogue(view, query, requestId) {
     }
     let items = (result.value.results || []).filter((item) => item.media_type !== "person");
     if (!query) items = items.filter((item) => item.poster_path);
-    if (items.length || query) rows.push({ title: plan[index].title, items, ranked: Boolean(plan[index].ranked) });
+    if (items.length || query) rows.push({ title: plan[index].title, items, ranked: Boolean(plan[index].ranked), icon: plan[index].icon, all: plan[index].all });
   });
   if (!rows.length && firstError) throw firstError;
   return rows.length ? rows : [{ title: "", items: [] }];
@@ -242,7 +258,9 @@ function cardHtml(item, opts = {}) {
   return `<article class="media-card">
       <button class="poster" type="button" data-media="${media}" aria-label="Regarder ${escapeHtml(title)}">
         ${art}
+        <span class="poster-hd" aria-hidden="true">HD</span>
         ${type === "tv" && !rec ? '<span class="poster-type">Série</span>' : ""}
+        <span class="poster-caption" aria-hidden="true"><b>${escapeHtml(title)}</b><i><svg viewBox="0 0 24 24"><path d="M7 4.5v15l13-7.5z"/></svg>Regarder</i></span>
         ${rec && rec.type === "tv" && rec.season ? `<span class="resume-tag">S${rec.season} · E${rec.episode}</span>` : ""}
         <span class="poster-play" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="m8 5 11 7-11 7z"></path></svg></span>
         ${rec ? '<span class="resume-bar" aria-hidden="true"><i></i></span>' : ""}
@@ -266,6 +284,18 @@ function renderGrid(items) {
 }
 
 const ARROW_PREV = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m15 18-6-6 6-6"/></svg>';
+const ARROW_NEXT_ALL = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+const ROW_ICONS = {
+  movie: '<path d="M4 8h16v11a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1Z"/><path d="m4 8 2-4h3L7 8M10 8l2-4h3l-2 4M16 8l2-4h2v4"/>',
+  tv: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="m8 3 4 4 4-4"/>',
+  anime: '<path d="M12 3a9 9 0 1 0 9 9"/><path d="M12 7a5 5 0 1 0 5 5"/><circle cx="12" cy="12" r="1.200"/>',
+  top: '<path d="M12 3c1 3.500 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3.500 2-4.500.2 1.500 1 2 1.800 2C10.500 7.500 11 5 12 3Z"/>',
+  doc: '<path d="M4 5.500A2.500 2.500 0 0 1 6.500 3H20v15H6.500A2.500 2.500 0 0 0 4 20.500Z"/><path d="M4 20.500A2.500 2.500 0 0 0 6.500 23H20"/>',
+  star: '<path d="m12 3 2.600 5.600 6.100.7-4.500 4.200 1.200 6L12 16.500 6.600 19.500l1.200-6L3.300 9.300l6.100-.7Z"/>',
+  play: '<circle cx="12" cy="12" r="9"/><path d="m10 8.500 5 3.500-5 3.500Z"/>',
+  clock: '<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>',
+  heart: '<path d="M12 20.500s-7.500-4.600-9.200-9.400C1.700 7.700 3.600 4.500 6.800 4.500c2 0 3.500 1.100 5.200 3.100 1.700-2 3.200-3.100 5.200-3.100 3.200 0 5.100 3.200 4 6.600-1.700 4.800-9.200 9.400-9.200 9.400Z"/>'
+};
 const ARROW_NEXT = '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 6 6 6-6 6"/></svg>';
 
 // Accueil et onglets : des rangées d'affiches qui défilent sur le côté.
@@ -281,7 +311,10 @@ function renderRows(rows) {
       ? items.map((item, index) => `<div class="rank-card"><span class="rank-num" aria-hidden="true">${index + 1}</span>${cardHtml(item)}</div>`).join("")
       : items.map((item) => cardHtml(item, row.resume ? { resume: item._rec } : {})).join("");
     return `<section class="row${row.ranked ? " row-ranked" : ""}${row.resume ? " row-resume" : ""}" aria-label="${escapeHtml(row.title)}">
-    <h2 class="row-title">${escapeHtml(row.title)}</h2>
+    <div class="row-head">
+      <h2 class="row-title"><span class="row-ico" aria-hidden="true"><svg viewBox="0 0 24 24">${ROW_ICONS[row.icon] || ROW_ICONS.play}</svg></span>${escapeHtml(row.title)}</h2>
+      ${row.all && !row.ranked && row.all !== state.view ? `<button class="row-all" type="button" data-viewall="${row.all}">Voir tout ${ARROW_NEXT_ALL}</button>` : ""}
+    </div>
     <div class="row-viewport">
       <button class="row-arrow row-arrow-prev" type="button" data-dir="prev" aria-label="Précédent">${ARROW_PREV}</button>
       <div class="row-track">${cards}</div>
@@ -294,8 +327,8 @@ function renderRows(rows) {
 }
 
 function setActiveView(view) {
-  document.querySelectorAll(".nav-link.is-active, .tab.is-active").forEach((node) => node.classList.remove("is-active"));
-  document.querySelectorAll(`.nav-link[data-view="${view}"], .tab[data-view="${view}"]`).forEach((node) => node.classList.add("is-active"));
+  document.querySelectorAll(".nav-link.is-active, .tab.is-active, .drawer-link.is-active").forEach((node) => node.classList.remove("is-active"));
+  document.querySelectorAll(`.nav-link[data-view="${view}"], .tab[data-view="${view}"], .drawer-link[data-view="${view}"]`).forEach((node) => node.classList.add("is-active"));
 }
 
 function updateRowEdges(track) {
@@ -456,9 +489,9 @@ function updateTopbar() {
 function personalRows() {
   const rows = [];
   const rec = PM.recent.list();
-  if (rec.length) rows.push({ title: "Reprendre la lecture", resume: true, items: rec.map((r) => ({ ...favToItem(r), _rec: r })) });
+  if (rec.length) rows.push({ title: "Reprendre la lecture", icon: "clock", resume: true, items: rec.map((r) => ({ ...favToItem(r), _rec: r })) });
   const fav = PM.favs.list();
-  if (fav.length) rows.push({ title: "Ma liste", items: fav.map(favToItem) });
+  if (fav.length) rows.push({ title: "Ma liste", icon: "heart", items: fav.map(favToItem) });
   return rows;
 }
 
@@ -477,6 +510,7 @@ function showList() {
 
 function showContent(rows) {
   const searching = Boolean(state.query);
+  if (billboard) billboard.dataset.view = state.view;
   const heroItems = (rows[0] && rows[0].items) || [];
   if (searching) renderGrid(heroItems);
   else renderRows(state.view === "home" ? [...personalRows(), ...rows] : rows);
@@ -737,7 +771,7 @@ async function initHomePage() {
   const saved = readSession(HOME_STATE_KEY);
   let restoreScroll = 0;
   if (saved) {
-    if (["home", "movie", "tv", "list"].includes(saved.view)) state.view = saved.view;
+    if (["home", "movie", "tv", "anime", "doc", "list"].includes(saved.view)) state.view = saved.view;
     if (typeof saved.query === "string") state.query = saved.query;
     restoreScroll = Number(saved.scroll) || 0;
     setActiveView(state.view);
@@ -751,22 +785,49 @@ async function initHomePage() {
     history.replaceState(null, "", "index.html");
   }
 
-  document.querySelectorAll(".nav-link[data-view], .tab[data-view]").forEach((button) => {
-    button.addEventListener("click", () => {
-      setActiveView(button.dataset.view);
-      state.view = button.dataset.view;
-      window.scrollTo({ top: 0 });
-      state.query = "";
-      searchInput.value = "";
-      clearSearchButton.hidden = true;
-      saveHomeState();
-      loadView();
-    });
-  });
+  const goView = (view) => {
+    setActiveView(view);
+    state.view = view;
+    window.scrollTo({ top: 0 });
+    state.query = "";
+    searchInput.value = "";
+    clearSearchButton.hidden = true;
+    saveHomeState();
+    loadView();
+  };
 
-  document.querySelector('.tab[data-action="search"]')?.addEventListener("click", () => {
+  // Menu latéral (bouton ☰ et onglet « Plus »)
+  const drawer = document.getElementById("drawer");
+  const menuButton = document.getElementById("menu-btn");
+  const openDrawer = () => {
+    if (!drawer) return;
+    drawer.hidden = false;
+    window.requestAnimationFrame(() => drawer.classList.add("is-open"));
+    menuButton?.setAttribute("aria-expanded", "true");
+    document.body.classList.add("no-scroll");
+  };
+  const closeDrawer = () => {
+    if (!drawer) return;
+    drawer.classList.remove("is-open");
+    menuButton?.setAttribute("aria-expanded", "false");
+    document.body.classList.remove("no-scroll");
+    window.setTimeout(() => { if (!drawer.classList.contains("is-open")) drawer.hidden = true; }, 280);
+  };
+  menuButton?.addEventListener("click", openDrawer);
+  document.querySelector('.tab[data-action="more"]')?.addEventListener("click", openDrawer);
+  drawer?.querySelectorAll("[data-close]").forEach((node) => node.addEventListener("click", closeDrawer));
+  document.addEventListener("keydown", (event) => { if (event.key === "Escape") closeDrawer(); });
+  drawer?.querySelector("[data-drawer-search]")?.addEventListener("click", () => {
+    closeDrawer();
     window.scrollTo({ top: 0 });
     searchInput.focus();
+  });
+
+  document.querySelectorAll(".nav-link[data-view], .tab[data-view], .drawer-link[data-view]").forEach((button) => {
+    button.addEventListener("click", () => {
+      goView(button.dataset.view);
+      closeDrawer();
+    });
   });
 
   const searchForm = document.querySelector(".search-form");
@@ -810,6 +871,8 @@ async function initHomePage() {
     if (state.featured) openPlayer(state.featured);
   });
   catalogue.addEventListener("click", (event) => {
+    const viewAll = event.target.closest("[data-viewall]");
+    if (viewAll) { goView(viewAll.dataset.viewall); return; }
     const arrow = event.target.closest(".row-arrow");
     if (arrow) {
       const track = arrow.parentElement.querySelector(".row-track");
