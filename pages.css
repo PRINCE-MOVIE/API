@@ -100,3 +100,8 @@
 .s-card h2 { display: flex; align-items: center; gap: 10px; }
 .s-card h2::before { content: ""; width: 4px; height: 20px; border-radius: 2px; background: linear-gradient(#c79bff, #7c3aed); }
 .s-card { box-shadow: 0 10px 30px rgba(0, 0, 0, .25); }
+
+/* Liens du pied de page */
+.footer-links { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 0 0 10px; }
+.footer-links a { color: var(--muted); font-weight: 600; }
+.footer-links a:hover { color: #fff; }
