@@ -193,8 +193,16 @@ function getRowPlan(view, query) {
   const horror = movieGenre("Horreur", 27);
   const thriller = movieGenre("Thrillers", 53);
   const family = movieGenre("En famille", 10751);
-  if (view === "movie") return [popularMovies, nowPlaying, topMovies, action, comedy, scifi, horror, thriller, family];
-  if (view === "tv") return [popularShows, onAir, topShows];
+  const tvGenre = (title, genre) => ({ title, icon: "tv", all: "tv", path: `/discover/tv?sort_by=popularity.desc&with_genres=${genre}&${common}` });
+  const adventure = movieGenre("Aventure", 12);
+  const romance = movieGenre("Romance", 10749);
+  const crime = tvGenre("Séries policières", 80);
+  const drama = tvGenre("Séries dramatiques", 18);
+  const tvComedy = tvGenre("Séries comiques", 35);
+  const tvScifi = tvGenre("Séries SF et fantastique", 10765);
+  const upcoming = { title: "Bientôt disponibles", icon: "clock", all: "movie", path: `/movie/upcoming?language=${lang}&region=FR` };
+  if (view === "movie") return [popularMovies, nowPlaying, topMovies, action, adventure, comedy, scifi, horror, thriller, romance, family, upcoming];
+  if (view === "tv") return [popularShows, onAir, topShows, drama, crime, tvComedy, tvScifi];
   if (view === "anime") return [anime, animeMovies, animeTop];
   if (view === "doc") return [docMovies, docShows];
   return [
@@ -203,9 +211,34 @@ function getRowPlan(view, query) {
   ];
 }
 
+// Nombre de pages TMDB chargées par rangée (20 titres par page) : plus de titres à parcourir.
+function pagesFor(view, query) {
+  if (query) return 3;
+  return view === "home" ? 3 : 5;
+}
+
+const tmdbCache = new Map();
+
+async function fetchRowPages(path, pages) {
+  const sep = path.includes("?") ? "&" : "?";
+  const responses = await Promise.allSettled(Array.from({ length: pages }, (_, i) => fetchTmdb(`${path}${sep}page=${i + 1}`)));
+  const ok = responses.filter((r) => r.status === "fulfilled").map((r) => r.value);
+  if (!ok.length) throw responses[0].reason;
+  const seen = new Set();
+  const results = [];
+  ok.forEach((page) => (page.results || []).forEach((item) => {
+    const key = `${item.media_type || ""}-${item.id}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    results.push(item);
+  }));
+  return { results };
+}
+
 async function fetchCatalogue(view, query, requestId) {
   const plan = getRowPlan(view, query);
-  const results = await Promise.allSettled(plan.map((row) => fetchTmdb(row.path)));
+  const pages = pagesFor(view, query);
+  const results = await Promise.allSettled(plan.map((row) => fetchRowPages(row.path, row.ranked ? 1 : pages)));
   if (requestId !== state.requestId) return null;
   const rows = [];
   let firstError = null;
@@ -226,12 +259,17 @@ async function fetchTmdb(endpoint) {
   if (!hasApiKey()) {
     throw new Error("Ajoutez votre clé TMDB dans config.js pour charger les saisons et épisodes disponibles.");
   }
+  if (tmdbCache.has(endpoint)) return tmdbCache.get(endpoint);
   const separator = endpoint.includes("?") ? "&" : "?";
-  const response = await fetch(`https://api.themoviedb.org/3${endpoint}${separator}api_key=${encodeURIComponent(getConfig().TMDB_KEY)}`, {
+  const request = fetch(`https://api.themoviedb.org/3${endpoint}${separator}api_key=${encodeURIComponent(getConfig().TMDB_KEY)}`, {
     headers: { Accept: "application/json" }
+  }).then((response) => {
+    if (!response.ok) throw new Error(`TMDB a répondu avec le statut ${response.status}.`);
+    return response.json();
   });
-  if (!response.ok) throw new Error(`TMDB a répondu avec le statut ${response.status}.`);
-  return response.json();
+  tmdbCache.set(endpoint, request);
+  request.catch(() => tmdbCache.delete(endpoint));
+  return request;
 }
 
 function formatRating(item) {

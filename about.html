@@ -16,6 +16,8 @@
   <link rel="stylesheet" href="style.css?v=4">
   <link rel="stylesheet" href="about.css?v=1">
   <link rel="stylesheet" href="theme.css?v=1">
+  <link rel="stylesheet" href="polish.css?v=1">
+  <script src="notifications.js?v=1" defer></script>
 </head>
 <body data-page="about">
   <header class="topbar is-solid">
@@ -27,34 +29,50 @@
     <section class="about-hero" aria-labelledby="about-title">
       <span class="about-eyebrow">À propos</span>
       <h1 id="about-title">Vos films et séries, <span>simplement</span>.</h1>
-      <p class="about-lead">PRINCE MOVIE est une plateforme de streaming pensée pour regarder films et séries en français, où que vous soyez, sans abonnement ni complication. Une interface claire, une navigation rapide, et l’essentiel à portée de clic.</p>
+      <p class="about-lead">PRINCE MOVIE est une plateforme de streaming pensée pour regarder films, séries, animes et documentaires en français, sans abonnement ni complication. Une interface claire, une navigation rapide et l’essentiel à portée de clic.</p>
+      <div class="about-actions">
+        <a class="button button-primary" href="index.html"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.500v15l13-7.500z"/></svg>Découvrir le catalogue</a>
+        <a class="button button-ghost" href="#team-title">Rencontrer l’équipe</a>
+      </div>
+      <ul class="about-stats" aria-label="Chiffres clés">
+        <li><b>4</b><span>catégories</span></li>
+        <li><b>100+</b><span>avatars de profil</span></li>
+        <li><b>5</b><span>langues de sous-titres</span></li>
+        <li><b>0 €</b><span>sans abonnement</span></li>
+      </ul>
     </section>
 
     <section class="about-section" aria-labelledby="mission-title">
       <h2 id="mission-title">Notre mission</h2>
       <p class="about-sub">Rendre le divertissement accessible à tous, avec une expérience soignée du premier clic jusqu’à la lecture.</p>
       <div class="about-grid">
-        <article class="a-card">
-          <div class="a-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.600 5.600l2.100 2.100M16.300 16.300l2.100 2.100M18.400 5.600l-2.100 2.100M7.700 16.300l-2.100 2.100"/></svg></div>
+        <article class="a-card"><div class="a-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M13 3 5 13.500h6L10 21l8-10.500h-6Z"/></svg></div>
           <h3>Simple et rapide</h3>
-          <p>Un catalogue organisé en Films et Séries, une recherche instantanée et une lecture en un clic.</p>
+          <p>Un catalogue organisé en Films, Séries, Anime et Documentaires, une recherche instantanée et une lecture en un clic.</p>
         </article>
-        <article class="a-card">
-          <div class="a-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 20.500s-7.500-4.600-9.200-9.400C1.700 7.700 3.600 4.500 6.800 4.500c2 0 3.500 1.100 5.200 3.100 1.700-2 3.200-3.100 5.200-3.100 3.200 0 5.100 3.200 4 6.600-1.700 4.800-9.200 9.400-9.200 9.400Z"/></svg></div>
+        <article class="a-card"><div class="a-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c.6-4 3.800-6 8-6s7.400 2 8 6"/></svg></div>
           <h3>Personnel</h3>
           <p>Votre compte, votre profil, votre liste de favoris et la reprise de lecture là où vous vous étiez arrêté.</p>
         </article>
-        <article class="a-card">
-          <div class="a-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="m8 3 4 4 4-4"/></svg></div>
+        <article class="a-card"><div class="a-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="2.500" width="10" height="19" rx="2"/><path d="M11 18.500h2"/></svg></div>
           <h3>Multi-appareils</h3>
           <p>Un site pensé pour le mobile comme pour l’ordinateur, avec une navigation adaptée à chaque écran.</p>
         </article>
-        <article class="a-card">
-          <div class="a-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.500"/><path d="M3 12h18M12 2.500c2.600 2.800 4 6 4 9.500s-1.400 6.700-4 9.500c-2.600-2.800-4-6-4-9.500s1.400-6.700 4-9.500Z"/></svg></div>
+        <article class="a-card"><div class="a-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.500"/><path d="M3 12h18M12 2.500c2.600 2.800 4 6 4 9.500s-1.400 6.700-4 9.500c-2.600-2.800-4-6-4-9.500s1.400-6.700 4-9.500Z"/></svg></div>
           <h3>En français</h3>
-          <p>Une interface et des contenus pensés pour le public francophone, avec des sources de lecture alternatives.</p>
+          <p>Une interface et des contenus pensés pour le public francophone, avec plusieurs sources de lecture et sous-titres.</p>
         </article>
       </div>
+    </section>
+
+    <section class="about-section" aria-labelledby="how-title">
+      <h2 id="how-title">Comment ça marche</h2>
+      <p class="about-sub">Trois étapes pour lancer votre premier titre.</p>
+      <ol class="about-steps">
+        <li><span class="step-n">1</span><div><h3>Créez votre compte</h3><p>Gratuit, en moins d’une minute, avec un simple pseudo et une adresse e-mail.</p></div></li>
+        <li><span class="step-n">2</span><div><h3>Choisissez un titre</h3><p>Parcourez les tendances, les genres ou utilisez la recherche pour trouver ce que vous voulez voir.</p></div></li>
+        <li><span class="step-n">3</span><div><h3>Lancez la lecture</h3><p>Sélectionnez une source et une langue de sous-titres, puis profitez de votre film ou de votre série.</p></div></li>
+      </ol>
     </section>
 
     <section class="about-section" aria-labelledby="team-title">
@@ -69,7 +87,7 @@
               <p class="member-real">De son vrai nom <strong>Christopher</strong></p>
             </div>
           </div>
-          <span class="member-role">Développeur</span>
+          <span class="member-role">Fondateur · Développeur</span>
           <p>À l’origine de PRINCE MOVIE, PrinceTech conçoit et fait évoluer la plateforme avec un objectif constant : offrir une expérience fluide, moderne et fiable.</p>
         </article>
         <article class="member">
@@ -99,7 +117,7 @@
         <p>Retrouvez les tendances de la semaine et lancez votre prochain titre.</p>
       </div>
       <a class="button button-primary" href="index.html">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l13-7.5z"></path></svg>
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.500v15l13-7.500z"></path></svg>
         Découvrir le catalogue
       </a>
     </section>
