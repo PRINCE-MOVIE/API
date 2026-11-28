@@ -193,6 +193,70 @@ function getRowPlan(view, query) {
   const horror = movieGenre("Horreur", 27);
   const thriller = movieGenre("Thrillers", 53);
   const family = movieGenre("En famille", 10751);
+  const adventure = movieGenre("Aventure", 12);
+  const romance = movieGenre("Romance", 10749);
+  const dramaMovies = movieGenre("Drames", 18);
+  const fantasy = movieGenre("Fantastique", 14);
+  const crimeMovies = movieGenre("Films policiers", 80);
+  const mystery = movieGenre("Mystère", 9648);
+  const warMovies = movieGenre("Films de guerre", 10752);
+  const historyMovies = movieGenre("Histoire", 36);
+  const westerns = movieGenre("Westerns", 37);
+  const musicMovies = movieGenre("Musique", 10402);
+  const animation = movieGenre("Films d’animation", 16);
+  const frenchCinema = { title: "Cinéma français", icon: "movie", all: "movie", path: `/discover/movie?sort_by=popularity.desc&with_original_language=fr&${common}` };
+  const tvGenre = (title, genre) => ({ title, icon: "tv", all: "tv", path: `/discover/tv?sort_by=popularity.desc&with_genres=${genre}&${common}` });
+  const crime = tvGenre("Séries policières", 80);
+  const drama = tvGenre("Séries dramatiques", 18);
+  const tvComedy = tvGenre("Séries comiques", 35);
+  const tvScifi = tvGenre("Séries SF et fantastique", 10765);
+  const tvAction = tvGenre("Action et aventure", 10759);
+  const tvMystery = tvGenre("Séries à suspense", 9648);
+  const tvKids = tvGenre("Séries jeunesse", 10762);
+  const frenchShows = { title: "Séries françaises", icon: "tv", all: "tv", path: `/discover/tv?sort_by=popularity.desc&with_original_language=fr&${common}` };
+  const kdrama = { title: "Dramas coréens", icon: "tv", all: "tv", path: `/discover/tv?sort_by=popularity.desc&with_original_language=ko&${common}` };
+  const upcoming = { title: "Bientôt disponibles", icon: "clock", all: "movie", path: `/movie/upcoming?language=${lang}&region=FR` };
+  const animeAction = { title: "Anime d’action", icon: "anime", all: "anime", path: `/discover/tv?sort_by=popularity.desc&with_genres=16,10759&with_original_language=ja&${common}` };
+  const animeFantasy = { title: "Anime fantastique", icon: "anime", all: "anime", path: `/discover/tv?sort_by=popularity.desc&with_genres=16,10765&with_original_language=ja&${common}` };
+  const animeComedy = { title: "Anime comédie", icon: "anime", all: "anime", path: `/discover/tv?sort_by=popularity.desc&with_genres=16,35&with_original_language=ja&${common}` };
+  const docHistory = { title: "Documentaires histoire", icon: "doc", all: "doc", path: `/discover/movie?sort_by=popularity.desc&with_genres=99,36&${common}` };
+  const docMusic = { title: "Documentaires musique", icon: "doc", all: "doc", path: `/discover/movie?sort_by=popularity.desc&with_genres=99,10402&${common}` };
+  const docTop = { title: "Documentaires les mieux notés", icon: "star", all: "doc", path: `/discover/movie?sort_by=vote_average.desc&vote_count.gte=200&with_genres=99&${common}` };
+  if (view === "movie") return [popularMovies, nowPlaying, topMovies, action, adventure, comedy, scifi, fantasy, horror, thriller, crimeMovies, mystery, dramaMovies, romance, animation, family, warMovies, historyMovies, westerns, musicMovies, frenchCinema, upcoming];
+  if (view === "tv") return [popularShows, onAir, topShows, drama, crime, tvComedy, tvScifi, tvAction, tvMystery, tvKids, frenchShows, kdrama];
+  if (view === "anime") return [anime, animeMovies, animeTop, animeAction, animeFantasy, animeComedy];
+  if (view === "doc") return [docMovies, docShows, docTop, docHistory, docMusic];
+  return [
+    { title: "Top 10 du moment", icon: "top", items: getDemoItems("home", ""), ranked: true },
+    { title: "Films", items: DEMO_CATALOGUE.movie },
+    { title: "Séries", items: DEMO_CATALOGUE.tv }
+  ];
+}
+
+// Les rangées affichées pour chaque onglet. La recherche reste une simple grille.
+// icon = pictogramme du titre ; all = onglet ouvert par « Voir tout ».
+function getRowPlan(view, query) {
+  const lang = PM.tmdbLang();
+  const common = `include_adult=false&language=${lang}`;
+  if (query) return [{ title: "", path: `/search/multi?query=${encodeURIComponent(query)}&${common}` }];
+  const movieGenre = (title, genre) => ({ title, icon: "movie", all: "movie", path: `/discover/movie?sort_by=popularity.desc&with_genres=${genre}&${common}` });
+  const popularMovies = { title: "Films populaires", icon: "movie", all: "movie", path: `/discover/movie?sort_by=popularity.desc&${common}` };
+  const popularShows = { title: "Séries à ne pas manquer", icon: "tv", all: "tv", path: `/discover/tv?sort_by=popularity.desc&${common}` };
+  const topMovies = { title: "Films les mieux notés", icon: "star", all: "movie", path: `/movie/top_rated?language=${lang}` };
+  const topShows = { title: "Séries les mieux notées", icon: "star", all: "tv", path: `/tv/top_rated?language=${lang}` };
+  const nowPlaying = { title: "Actuellement au cinéma", icon: "movie", all: "movie", path: `/movie/now_playing?language=${lang}&region=FR` };
+  const onAir = { title: "Diffusées en ce moment", icon: "tv", all: "tv", path: `/tv/on_the_air?language=${lang}` };
+  const anime = { title: "Anime", icon: "anime", all: "anime", path: `/discover/tv?sort_by=popularity.desc&with_genres=16&with_original_language=ja&${common}` };
+  const animeMovies = { title: "Films d’anime", icon: "anime", all: "anime", path: `/discover/movie?sort_by=popularity.desc&with_genres=16&with_original_language=ja&${common}` };
+  const animeTop = { title: "Anime les mieux notés", icon: "star", all: "anime", path: `/discover/tv?sort_by=vote_average.desc&vote_count.gte=300&with_genres=16&with_original_language=ja&${common}` };
+  const docMovies = { title: "Documentaires", icon: "doc", all: "doc", path: `/discover/movie?sort_by=popularity.desc&with_genres=99&${common}` };
+  const docShows = { title: "Séries documentaires", icon: "doc", all: "doc", path: `/discover/tv?sort_by=popularity.desc&with_genres=99&${common}` };
+  const action = movieGenre("Films d’action", 28);
+  const comedy = movieGenre("Comédies", 35);
+  const scifi = movieGenre("Science-fiction", 878);
+  const horror = movieGenre("Horreur", 27);
+  const thriller = movieGenre("Thrillers", 53);
+  const family = movieGenre("En famille", 10751);
   const tvGenre = (title, genre) => ({ title, icon: "tv", all: "tv", path: `/discover/tv?sort_by=popularity.desc&with_genres=${genre}&${common}` });
   const adventure = movieGenre("Aventure", 12);
   const romance = movieGenre("Romance", 10749);
@@ -207,14 +271,14 @@ function getRowPlan(view, query) {
   if (view === "doc") return [docMovies, docShows];
   return [
     { title: "Top 10 du moment", icon: "top", path: `/trending/all/week?language=${lang}`, ranked: true },
-    popularMovies, popularShows, anime, nowPlaying, action, comedy, scifi, horror, thriller, topMovies, family, docMovies, topShows
+    popularMovies, popularShows, anime, nowPlaying, action, comedy, scifi, horror, thriller, topMovies, adventure, fantasy, dramaMovies, crimeMovies, drama, crime, tvAction, kdrama, family, animation, frenchCinema, frenchShows, docMovies, topShows, upcoming
   ];
 }
 
 // Nombre de pages TMDB chargées par rangée (20 titres par page) : plus de titres à parcourir.
 function pagesFor(view, query) {
   if (query) return 3;
-  return view === "home" ? 3 : 5;
+  return view === "home" ? 2 : 3;
 }
 
 const tmdbCache = new Map();
@@ -249,7 +313,7 @@ async function fetchCatalogue(view, query, requestId) {
     }
     let items = (result.value.results || []).filter((item) => item.media_type !== "person");
     if (!query) items = items.filter((item) => item.poster_path);
-    if (items.length || query) rows.push({ title: plan[index].title, items, ranked: Boolean(plan[index].ranked), icon: plan[index].icon, all: plan[index].all });
+    if (items.length || query) rows.push({ title: plan[index].title, items, ranked: Boolean(plan[index].ranked), icon: plan[index].icon, all: plan[index].all, path: query ? "" : plan[index].path, pages });
   });
   if (!rows.length && firstError) throw firstError;
   return rows.length ? rows : [{ title: "", items: [] }];
@@ -348,7 +412,8 @@ function renderRows(rows) {
     const cards = row.ranked
       ? items.map((item, index) => `<div class="rank-card"><span class="rank-num" aria-hidden="true">${index + 1}</span>${cardHtml(item)}</div>`).join("")
       : items.map((item) => cardHtml(item, row.resume ? { resume: item._rec } : {})).join("");
-    return `<section class="row${row.ranked ? " row-ranked" : ""}${row.resume ? " row-resume" : ""}" aria-label="${escapeHtml(row.title)}">
+    const more = row.path && !row.ranked && !row.resume ? ` data-path="${escapeHtml(row.path)}" data-page="${row.pages || 1}"` : "";
+    return `<section class="row${row.ranked ? " row-ranked" : ""}${row.resume ? " row-resume" : ""}" aria-label="${escapeHtml(row.title)}"${more}>
     <div class="row-head">
       <h2 class="row-title"><span class="row-ico" aria-hidden="true"><svg viewBox="0 0 24 24">${ROW_ICONS[row.icon] || ROW_ICONS.play}</svg></span>${escapeHtml(row.title)}</h2>
       ${row.all && !row.ranked && row.all !== state.view ? `<button class="row-all" type="button" data-viewall="${row.all}">Voir tout ${ARROW_NEXT_ALL}</button>` : ""}
@@ -913,6 +978,25 @@ async function initHomePage() {
   document.getElementById("billboard-play").addEventListener("click", () => {
     if (state.featured) openPlayer(state.featured);
   });
+  // Défilement infini : en arrivant au bout d'une rangée, on charge la page TMDB suivante (jusqu'à 20 pages).
+  catalogue.addEventListener("scroll", (event) => {
+    const track = event.target;
+    if (!track.classList || !track.classList.contains("row-track")) return;
+    const section = track.closest(".row");
+    if (!section || !section.dataset.path || section.dataset.busy || section.dataset.done) return;
+    if (track.scrollWidth - track.scrollLeft - track.clientWidth > 900) return;
+    const next = Number(section.dataset.page || 1) + 1;
+    if (next > 20) { section.dataset.done = "1"; return; }
+    section.dataset.busy = "1";
+    const path = section.dataset.path;
+    fetchTmdb(`${path}${path.includes("?") ? "&" : "?"}page=${next}`).then((data) => {
+      const seen = new Set(Array.from(track.querySelectorAll("[data-media]")).map((n) => { try { return JSON.parse(n.dataset.media).id; } catch { return null; } }));
+      const fresh = (data.results || []).filter((item) => item.poster_path && !seen.has(item.id) && item.media_type !== "person");
+      if (!fresh.length || next >= (data.total_pages || 20)) section.dataset.done = "1";
+      track.insertAdjacentHTML("beforeend", fresh.map((item) => cardHtml(item)).join(""));
+      section.dataset.page = String(next);
+    }).catch(() => { section.dataset.done = "1"; }).finally(() => { delete section.dataset.busy; });
+  }, true);
   catalogue.addEventListener("click", (event) => {
     const viewAll = event.target.closest("[data-viewall]");
     if (viewAll) { goView(viewAll.dataset.viewall); return; }
@@ -959,12 +1043,12 @@ async function initHomePage() {
     if (document.visibilityState === "hidden") saveHomeState();
   });
 
-  const minimumSplashDuration = new Promise((resolve) => window.setTimeout(resolve, splashSeen ? 0 : 1400));
+  const minimumSplashDuration = Promise.resolve();
   try {
     await loadView();
   } finally {
     await minimumSplashDuration;
-    await dismissSplashScreen(splashSeen);
+    await dismissSplashScreen(true);
     if (restoreScroll > 0) window.scrollTo(0, restoreScroll);
     updateTopbar();
     homeStateReady = true;
