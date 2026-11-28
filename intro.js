@@ -18,7 +18,7 @@
   var promise = new Promise(function (r) { resolveIntro = r; });
   promise.done = false;
   window.PMIntro = promise;
-  if (!(isPlayer || isHome) || skipAuto) { promise.done = true; resolveIntro(); return; }
+  if (!isHome || skipAuto) { promise.done = true; resolveIntro(); return; }
 
   var SPARKS = 22;
   function sparksHtml() {
