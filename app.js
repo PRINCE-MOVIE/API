@@ -698,6 +698,11 @@ function syncFavButton() {
 }
 
 function loadTarget() {
+  // L'animation « P » joue d'abord ; la vidéo ne se charge qu'après, pour ne pas lancer le son du lecteur en dessous.
+  if (window.PMIntro && !window.PMIntro.done) {
+    window.PMIntro.then(loadTarget);
+    return;
+  }
   playerMessage.hidden = true;
   const resource = playerRuntime.currentResource;
   const server = playerRuntime.servers[playerRuntime.currentIndex];

@@ -75,3 +75,24 @@ body { background-attachment: scroll; }
   .notif-panel { position: fixed; top: calc(var(--header-h, 66px) + 6px); right: 12px; left: 12px; width: auto; }
 }
 @media (prefers-reduced-motion: reduce) { .notif-btn.has-unread svg, .notif-panel { animation: none; } }
+
+/* ---------- Style application mobile : accès rapide, champs et cartes arrondis ---------- */
+.quick { display: none; max-width: 1400px; margin: 0 auto; padding: 4px var(--gutter, 20px) 8px; }
+body:has(.billboard[data-view="home"]) .quick { display: block; }
+body:has(main.is-plain) .quick { display: none; }
+.quick-head h2 { margin: 0 0 12px; font-size: clamp(1.05rem, 2.2vw, 1.4rem); font-weight: 700; color: #fff; }
+.quick-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; max-width: 760px; }
+.q-tile { display: grid; justify-items: center; gap: 10px; padding: 18px 8px 14px; border-radius: 18px; color: #fff; font: 600 13px var(--font, inherit);
+  background: linear-gradient(160deg, rgba(60, 20, 120, .55), rgba(14, 6, 30, .9)); border: 1.5px solid rgba(168, 85, 247, .55); box-shadow: 0 8px 22px rgba(60, 10, 140, .3);
+  transition: transform .15s, border-color .2s, box-shadow .2s; }
+.q-tile:hover { transform: translateY(-3px); border-color: #fff; box-shadow: 0 12px 28px rgba(124, 31, 255, .5); }
+.q-tile svg { width: 34px; height: 34px; fill: none; stroke: #e9d5ff; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; filter: drop-shadow(0 0 10px rgba(168, 85, 247, .7)); }
+@media (max-width: 560px) { .quick-grid { gap: 8px; } .q-tile { padding: 14px 4px 10px; font-size: 12px; } .q-tile svg { width: 30px; height: 30px; } }
+
+.card input[type="text"], .card input[type="email"], .card input[type="password"], .card select, .s-form .f input {
+  border-radius: 14px; background: #1b1030; border: 1.5px solid rgba(168, 85, 247, .28); color: #fff; }
+.card input:focus, .s-form .f input:focus { border-color: #c084fc; box-shadow: 0 0 0 3px rgba(168, 85, 247, .25); outline: none; }
+.cta { border-radius: 999px; background: linear-gradient(135deg, #b25cff 0%, #8a2bff 55%, #7414f5 100%); }
+.s-card, .a-card, .member { border-radius: 20px; }
+.s-card { border-color: rgba(168, 85, 247, .3); }
+.tabbar .tab { border-radius: 16px; }

@@ -59,3 +59,22 @@
 .member { border-width: 1.5px; }
 .about-note { border-width: 1.5px; }
 @media (max-width: 560px) { .about-actions .button { flex: 1 1 100%; justify-content: center; } }
+
+/* ---------- Style application : logo et liste d'informations ---------- */
+.about-hero { text-align: center; }
+.about-hero .about-lead { margin-left: auto; margin-right: auto; }
+.about-logo { display: block; width: auto; height: clamp(56px, 11vw, 84px); margin: 0 auto 18px; filter: drop-shadow(0 0 22px rgba(155, 61, 255, .5)); }
+.about-actions { justify-content: center; }
+.about-list { display: grid; gap: 10px; }
+.about-row { border-radius: 16px; background: linear-gradient(160deg, #170c2a, #0e0719); border: 1.5px solid var(--line); overflow: hidden; }
+.about-row[open] { border-color: rgba(190, 140, 255, .5); }
+.about-row summary { display: flex; align-items: center; gap: 14px; padding: 16px 18px; color: #fff; font-weight: 700; font-size: 15px; cursor: pointer; list-style: none; }
+.about-row summary::-webkit-details-marker { display: none; }
+.about-row summary i { margin-left: auto; width: 9px; height: 9px; border-right: 2px solid #c79bff; border-bottom: 2px solid #c79bff; transform: rotate(-45deg); transition: transform .2s; }
+.about-row[open] summary i { transform: rotate(45deg); }
+.about-row summary:focus-visible { outline: 2px solid #c79bff; outline-offset: -2px; }
+.a-ico { display: grid; place-items: center; flex: none; width: 38px; height: 38px; border-radius: 12px; color: #e9d5ff; background: rgba(155, 92, 255, .18); border: 1px solid rgba(190, 140, 255, .3); }
+.a-ico svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round; }
+.about-row p { margin: 0; padding: 0 18px 18px 70px; color: var(--muted); font-size: 14px; line-height: 1.65; }
+.about-row p strong { color: #fff; }
+@media (max-width: 560px) { .about-row p { padding-left: 18px; } }
